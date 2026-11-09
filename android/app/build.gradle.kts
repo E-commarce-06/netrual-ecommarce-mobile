@@ -8,9 +8,11 @@ plugins {
 val appDisplayName = providers.environmentVariable("APP_DISPLAY_NAME")
     .orElse("BNEO")
     .get()
-val androidApplicationId = providers.environmentVariable("ANDROID_APPLICATION_ID")
-    .orElse("com.cartxis.app")
-    .get()
+val configuredAndroidApplicationId = providers.environmentVariable("ANDROID_APPLICATION_ID")
+    .orNull
+    ?.trim()
+    ?.takeIf { it.isNotEmpty() }
+val androidApplicationId = configuredAndroidApplicationId ?: "com.arkeonethiopia.commarce"
 val storeBrandAssetsApproved =
     providers.environmentVariable("STORE_BRAND_ASSETS_APPROVED").orNull == "true"
 val repositoryRoot = rootProject.projectDir.parentFile
@@ -137,11 +139,13 @@ tasks.configureEach {
                 )
             }
             if (appDisplayName.isBlank() ||
+                configuredAndroidApplicationId == null ||
                 androidApplicationId.startsWith("com.cartxis.") ||
                 androidApplicationId.startsWith("com.example.")) {
                 throw GradleException(
                     "Release identity is not configured. Supply the approved " +
-                        "APP_DISPLAY_NAME and ANDROID_APPLICATION_ID environment values.",
+                        "APP_DISPLAY_NAME and ANDROID_APPLICATION_ID environment values; " +
+                        "the local development ID cannot be used implicitly for release.",
                 )
             }
             if (!storeBrandAssetsApproved) {

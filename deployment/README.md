@@ -6,6 +6,8 @@ The checked-in JSON files contain **public build configuration only**. Never add
 
 `bneo.integration.json` is configured with the supplied HTTPS host as an integration target. The host responded to a read-only public app-settings request, but its staging/production role has **not been verified**. Do not use it for live checkout/payment testing or label it as production without confirmation.
 
+For local development, Android and iOS use `com.arkeonethiopia.commarce` as the BNEO application/bundle identifier. This identifier has not been checked or registered in either store account; it is a development identity, not evidence of store availability or release approval. No Play Console or App Store account is needed to use an emulator or simulator.
+
 Run the Flutter source against this profile:
 
 ```sh
@@ -24,7 +26,7 @@ No production profile is checked in. Before making a release build, the store ow
 - Approved Android/iOS launcher and splash assets, URL schemes, legal content, and supported payment methods. Android release packaging additionally requires `STORE_BRAND_ASSETS_APPROVED=true` after those assets have actually been replaced and reviewed.
 - A newly created, owner-controlled Android signing key; credentials must come from protected CI secrets and the keystore file must remain outside the repository.
 
-The Android Gradle release packaging tasks fail unless signing secrets, a production Dart-define profile, and a non-upstream Android application ID are supplied. This is intentional: `com.cartxis.app` is still the upstream placeholder and is not an approved release identity for BNEO. iOS identity/signing is not configured by this Android guard and still requires owner-approved Xcode/CI settings.
+The Android Gradle release packaging tasks fail unless signing secrets, a production Dart-define profile, and an explicit `ANDROID_APPLICATION_ID` are supplied. The local default `com.arkeonethiopia.commarce` is not implicitly accepted for release; confirm its availability/registration in Play Console before setting it in the protected release job. iOS now uses the same identifier for local development and has no upstream signing-team value; App Store registration and distribution signing still require the appropriate Apple account and provisioning setup.
 
 Example environment setup for a protected release job (values must be provided by the owner; none are stored here):
 
