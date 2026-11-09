@@ -1,15 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
+import '../storage/auth_token_storage.dart';
 import 'api_exception.dart';
 
 /// API Client for handling HTTP requests
 class ApiClient {
   final http.Client _client;
+  final AuthTokenStorage _tokenStorage;
 
-  ApiClient({http.Client? client}) : _client = client ?? _createClient();
+  ApiClient({http.Client? client, AuthTokenStorage? tokenStorage})
+      : _client = client ?? _createClient(),
+        _tokenStorage = tokenStorage ?? AuthTokenStorage.instance;
 
   /// Uses the platform's normal certificate validation in every build mode.
   static http.Client _createClient() => http.Client();
@@ -24,14 +27,11 @@ class ApiClient {
       final uri = Uri.parse(ApiConfig.getFullUrl(endpoint))
           .replace(queryParameters: queryParameters);
 
-
-
       final request = http.Request('GET', uri)
         ..headers.addAll(await _buildHeaders(headers))
         ..followRedirects = false;
-      final streamedResponse = await _client
-          .send(request)
-          .timeout(ApiConfig.connectionTimeout);
+      final streamedResponse =
+          await _client.send(request).timeout(ApiConfig.connectionTimeout);
       final response = await http.Response.fromStream(streamedResponse)
           .timeout(ApiConfig.receiveTimeout);
 
@@ -69,9 +69,8 @@ class ApiClient {
         ..headers.addAll(await _buildHeaders(headers))
         ..followRedirects = false;
       if (body != null) request.body = jsonEncode(body);
-      final streamedResponse = await _client
-          .send(request)
-          .timeout(ApiConfig.connectionTimeout);
+      final streamedResponse =
+          await _client.send(request).timeout(ApiConfig.connectionTimeout);
       final response = await http.Response.fromStream(streamedResponse)
           .timeout(ApiConfig.receiveTimeout);
 
@@ -109,9 +108,8 @@ class ApiClient {
         ..headers.addAll(await _buildHeaders(headers))
         ..followRedirects = false;
       if (body != null) request.body = jsonEncode(body);
-      final streamedResponse = await _client
-          .send(request)
-          .timeout(ApiConfig.connectionTimeout);
+      final streamedResponse =
+          await _client.send(request).timeout(ApiConfig.connectionTimeout);
       final response = await http.Response.fromStream(streamedResponse)
           .timeout(ApiConfig.receiveTimeout);
 
@@ -175,9 +173,8 @@ class ApiClient {
 
       // Send request
       request.followRedirects = false;
-      final streamedResponse = await _client
-          .send(request)
-          .timeout(ApiConfig.connectionTimeout);
+      final streamedResponse =
+          await _client.send(request).timeout(ApiConfig.connectionTimeout);
 
       // Get response without following a server-provided redirect.
       final response = await http.Response.fromStream(streamedResponse)
@@ -221,9 +218,8 @@ class ApiClient {
         request.body = jsonEncode(body);
       }
 
-      final streamed = await _client
-          .send(request)
-          .timeout(ApiConfig.connectionTimeout);
+      final streamed =
+          await _client.send(request).timeout(ApiConfig.connectionTimeout);
       final response = await http.Response.fromStream(streamed)
           .timeout(ApiConfig.receiveTimeout);
 
@@ -249,20 +245,18 @@ class ApiClient {
   }
 
   /// Build headers with default values
-  Future<Map<String, String>> _buildHeaders(Map<String, String>? headers) async {
+  Future<Map<String, String>> _buildHeaders(
+      Map<String, String>? headers) async {
     final defaultHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
 
-    // Add authentication token if available
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-      if (token != null && token.isNotEmpty) {
-        defaultHeaders['Authorization'] = 'Bearer $token';
-      }
-    } catch (e) {
+    // Add the secure token if available. Storage errors bubble through normal
+    // request handling instead of silently stripping authentication.
+    final token = await _tokenStorage.readToken();
+    if (token != null && token.isNotEmpty) {
+      defaultHeaders['Authorization'] = 'Bearer $token';
     }
 
     if (headers != null) {
@@ -276,7 +270,6 @@ class ApiClient {
   Map<String, dynamic> _handleResponse(http.Response response) {
     final statusCode = response.statusCode;
     final body = response.body;
-
 
     // Try to parse response body
     Map<String, dynamic> responseData;

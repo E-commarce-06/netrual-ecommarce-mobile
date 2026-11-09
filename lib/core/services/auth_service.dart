@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import '../storage/auth_token_storage.dart';
 
 class AuthService {
   static const String _keyIsLoggedIn = 'is_logged_in';
@@ -36,7 +37,11 @@ class AuthService {
 
   // Logout - clear all saved data
   static Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    try {
+      await AuthTokenStorage.instance.deleteToken();
+    } finally {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+    }
   }
 }

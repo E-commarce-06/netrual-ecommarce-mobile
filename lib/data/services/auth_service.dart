@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/api_config.dart';
 import '../../core/network/api_client.dart';
+import '../../core/storage/auth_token_storage.dart';
 import '../../core/network/api_exception.dart';
 import '../models/api_response.dart';
 import '../models/login_response.dart';
@@ -10,10 +12,13 @@ import '../models/user_model.dart';
 /// Authentication Service
 class AuthService {
   final ApiClient _apiClient;
-  static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
+  final AuthTokenStorage _tokenStorage;
 
-  AuthService({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
+  AuthService({ApiClient? apiClient, AuthTokenStorage? tokenStorage})
+      : _tokenStorage = tokenStorage ?? AuthTokenStorage.instance,
+        _apiClient = apiClient ??
+            ApiClient(tokenStorage: tokenStorage ?? AuthTokenStorage.instance);
 
   /// Login
   Future<LoginData> login({
@@ -104,87 +109,40 @@ class AuthService {
     return apiResponse.data!;
   }
 
-  /// Save authentication data to local storage
+  /// Save authentication data to secure/local storage.
   Future<void> _saveAuthData(LoginData loginData) async {
+    await _tokenStorage.writeToken(loginData.token);
     final prefs = await SharedPreferences.getInstance();
-    
-    // Save token
-    await prefs.setString(_tokenKey, loginData.token);
-    
-    // Save user data as JSON string
     await prefs.setString(_userKey, _userToJson(loginData.user));
-    
-    // Keep the existing isLoggedIn flag
     await prefs.setBool('isLoggedIn', true);
   }
 
-  /// Convert user to JSON string
-  String _userToJson(UserModel user) {
-    final userMap = user.toJson();
-    final buffer = StringBuffer();
-    buffer.write('{');
-    
-    userMap.forEach((key, value) {
-      if (buffer.length > 1) buffer.write(',');
-      buffer.write('"$key":');
-      if (value == null) {
-        buffer.write('null');
-      } else if (value is String) {
-        buffer.write('"$value"');
-      } else {
-        buffer.write('$value');
-      }
-    });
-    
-    buffer.write('}');
-    return buffer.toString();
-  }
+  String _userToJson(UserModel user) => jsonEncode(user.toJson());
 
-  /// Parse user from JSON string
+  /// Parse the cached user with the standard JSON decoder.
   UserModel? _parseUserFromJson(String jsonString) {
     try {
-      // Basic JSON parsing for our user model
-      final data = <String, dynamic>{};
-      final content = jsonString.substring(1, jsonString.length - 1); // Remove { }
-      final pairs = content.split(',');
-      
-      for (var pair in pairs) {
-        final parts = pair.split(':');
-        if (parts.length == 2) {
-          final key = parts[0].trim().replaceAll('"', '');
-          var value = parts[1].trim();
-          
-          if (value == 'null') {
-            data[key] = null;
-          } else if (value.startsWith('"')) {
-            data[key] = value.replaceAll('"', '');
-          } else {
-            data[key] = int.tryParse(value) ?? value;
-          }
-        }
-      }
-      
-      return UserModel.fromJson(data);
-    } catch (e) {
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! Map<String, dynamic>) return null;
+      return UserModel.fromJson(decoded);
+    } catch (_) {
       return null;
     }
   }
 
-  /// Get saved token
-  Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
-  }
+  /// Get saved token from platform secure storage. This also migrates the
+  /// legacy SharedPreferences token on the first read.
+  Future<String?> getToken() => _tokenStorage.readToken();
 
   /// Get saved user
   Future<UserModel?> getUser() async {
     final prefs = await SharedPreferences.getInstance();
     final userJson = prefs.getString(_userKey);
-    
+
     if (userJson != null) {
       return _parseUserFromJson(userJson);
     }
-    
+
     return null;
   }
 
@@ -194,33 +152,50 @@ class AuthService {
     return prefs.getBool('isLoggedIn') ?? false;
   }
 
-  /// Logout
+  /// Revoke the current server token when possible, then clear local auth.
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    // Clear authentication data
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_userKey);
-    await prefs.setBool('isLoggedIn', false);
+    try {
+      final token = await _tokenStorage.readToken();
+      if (token != null && token.isNotEmpty) {
+        await _apiClient.post(
+          ApiConfig.authLogout,
+          headers: {'Authorization': 'Bearer $token'},
+        );
+      }
+    } catch (_) {
+      // Revocation errors must not keep local credentials on the device.
+    } finally {
+      await _clearLocalAuth();
+    }
+  }
+
+  Future<void> _clearLocalAuth() async {
+    try {
+      await _tokenStorage.deleteToken();
+    } finally {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_userKey);
+      await prefs.setBool('isLoggedIn', false);
+    }
   }
 
   /// Get authorization header
   Future<Map<String, String>?> getAuthHeaders() async {
     final token = await getToken();
-    
-    if (token != null) {
+
+    if (token != null && token.isNotEmpty) {
       return {
         'Authorization': 'Bearer $token',
       };
     }
-    
+
     return null;
   }
 
   /// Get user profile from API
   Future<UserModel> getProfile() async {
     final headers = await getAuthHeaders();
-    
+
     if (headers == null) {
       throw ApiException(
         message: 'Not authenticated',
@@ -281,10 +256,8 @@ class AuthService {
       body: {'password': password},
     );
 
-    // Clear all local auth data
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_userKey);
+    // Clear all local auth data after the server confirms account deletion.
+    await _clearLocalAuth();
   }
 
   /// Update user profile
@@ -297,7 +270,7 @@ class AuthService {
     File? avatar,
   }) async {
     final headers = await getAuthHeaders();
-    
+
     if (headers == null) {
       throw ApiException(
         message: 'Not authenticated',
@@ -316,7 +289,8 @@ class AuthService {
         fields: {
           'name': fullName,
           if (phone != null && phone.isNotEmpty) 'phone': phone,
-          if (dateOfBirth != null && dateOfBirth.isNotEmpty) 'date_of_birth': dateOfBirth,
+          if (dateOfBirth != null && dateOfBirth.isNotEmpty)
+            'date_of_birth': dateOfBirth,
           if (gender != null && gender.isNotEmpty) 'gender': gender,
           '_method': 'PUT',
         },
@@ -370,13 +344,11 @@ class AuthService {
       body['gender'] = gender;
     }
 
-
     final response = await _apiClient.put(
       ApiConfig.customerProfile,
       headers: headers,
       body: body,
     );
-
 
     // Check success first before parsing data
     if (response['success'] == false) {
@@ -403,7 +375,6 @@ class AuthService {
     // Update stored user data
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_userKey, _userToJson(apiResponse.data!));
-
 
     return apiResponse.data!;
   }
