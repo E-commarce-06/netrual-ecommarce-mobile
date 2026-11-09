@@ -287,7 +287,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             fontSize: 14,
                           ),
                           prefixIcon: _isLoading
-                              ? const Padding(
+                              ? Padding(
                                   padding: EdgeInsets.all(12),
                                   child: SizedBox(
                                     width: 20,
@@ -368,7 +368,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               TextButton(
                 onPressed: _clearFilters,
-                child: const Text(
+                child: Text(
                   'Clear All',
                   style: TextStyle(
                     color: AppColors.primary,
@@ -571,12 +571,12 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.filter_alt_outlined, size: 18, color: AppColors.primary),
+                    Icon(Icons.filter_alt_outlined, size: 18, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Category filter is selected. Type to search within it.',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: AppColors.primary,
@@ -919,7 +919,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           children: [
                             Text(
                               '\$${product.finalPrice.toStringAsFixed(2)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.primary,
@@ -946,7 +946,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         child: Container(
                           width: 26,
                           height: 26,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             color: AppColors.primary,
                             shape: BoxShape.circle,
                           ),

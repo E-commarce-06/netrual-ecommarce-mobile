@@ -1271,7 +1271,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 onTap: () {
                   // Handle edit action
                 },
-                child: const Text(
+                child: Text(
                   'Edit',
                   style: TextStyle(
                     fontSize: 14,

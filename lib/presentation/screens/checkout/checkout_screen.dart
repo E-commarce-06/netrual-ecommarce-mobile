@@ -414,7 +414,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                                       color: AppColors.primary.withOpacity(0.1),
                                                       borderRadius: BorderRadius.circular(4),
                                                     ),
-                                                    child: const Text(
+                                                    child: Text(
                                                       'Default',
                                                       style: TextStyle(
                                                         fontSize: 10,
@@ -469,7 +469,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               label: const Text('Add New Address'),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.primary,
-                                side: const BorderSide(color: AppColors.primary),
+                                side: BorderSide(color: AppColors.primary),
                               ),
                             ),
                           ],

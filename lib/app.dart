@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cartxis_app/core/config/mobile_app_settings_controller.dart';
+import 'package:cartxis_app/core/constants/app_colors.dart';
 import 'package:cartxis_app/core/theme/app_theme.dart';
 import 'package:cartxis_app/core/theme/theme_controller.dart';
 import 'package:cartxis_app/routes/app_router.dart';
@@ -27,6 +28,7 @@ class _CartxisAppState extends State<CartxisApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _themeController.addListener(_onThemeChanged);
     _mobileSettingsController.addListener(_onAppSettingsChanged);
+    _applyBrandColors();
     unawaited(_mobileSettingsController.load());
     _sendHeartbeat();
   }
@@ -45,7 +47,16 @@ class _CartxisAppState extends State<CartxisApp> with WidgetsBindingObserver {
   }
 
   void _onAppSettingsChanged() {
+    _applyBrandColors();
     if (mounted) setState(() {});
+  }
+
+  void _applyBrandColors() {
+    final settings = _mobileSettingsController.settings;
+    AppColors.applyBrandColors(
+      primaryHex: settings.primaryColor,
+      accentHex: settings.accentColor,
+    );
   }
 
   @override

@@ -760,7 +760,7 @@ class OrderDetailScreen extends StatelessWidget {
                   child: ElevatedButton.icon(
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
+                         SnackBar(
                           content: Text('Reorder feature coming soon...'),
                           behavior: SnackBarBehavior.floating,
                           backgroundColor: AppColors.primary,

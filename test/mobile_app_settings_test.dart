@@ -15,6 +15,7 @@ void main() {
             'description': 'A store description.',
             'logo_url': 'https://cdn.example.test/logo.png',
             'auth_logo_url': 'https://cdn.example.test/auth.png',
+            'colors': {'primary': '#1A2B3C', 'accent': '#095AB1'},
           },
           'support': {
             'email': 'help@example.test',
@@ -34,6 +35,8 @@ void main() {
       expect(settings.appName, 'BNEO');
       expect(settings.revision, 'rev-123');
       expect(settings.authLogoUrl, 'https://cdn.example.test/auth.png');
+      expect(settings.primaryColor, '#1A2B3C');
+      expect(settings.accentColor, '#095AB1');
       expect(settings.supportEmail, 'help@example.test');
       expect(settings.country, 'Ethiopia');
       expect(settings.privacyPolicy, 'Privacy copy');
@@ -54,6 +57,19 @@ void main() {
       expect(settings.logoUrl, isNull);
       expect(settings.authLogoUrl, 'https://cdn.example.test/auth.png');
       expect(settings.supportPhone, '555-0100');
+    });
+
+    test('uses bundled color defaults for malformed or low-contrast public brand colors', () {
+      final settings = MobileAppSettings.fromApiData({
+        'mobile_config': {
+          'brand': {
+            'colors': {'primary': 'red', 'accent': '#AABBCC'},
+          },
+        },
+      });
+
+      expect(settings.primaryColor, '#1268C4');
+      expect(settings.accentColor, '#0C62B8');
     });
 
     test('cached JSON round-trips the typed settings shape', () {

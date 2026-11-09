@@ -483,7 +483,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
+                            borderSide: BorderSide(
                               color: AppColors.primary,
                               width: 1.5,
                             ),
@@ -531,7 +531,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
+                            borderSide: BorderSide(
                               color: AppColors.primary,
                               width: 1.5,
                             ),
@@ -615,7 +615,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
+                            borderSide: BorderSide(
                               color: AppColors.primary,
                               width: 1.5,
                             ),
@@ -798,7 +798,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
+                            borderSide: BorderSide(
                               color: AppColors.primary,
                               width: 1.5,
                             ),
@@ -852,7 +852,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
+                            borderSide: BorderSide(
                               color: AppColors.primary,
                               width: 1.5,
                             ),
@@ -906,7 +906,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
+                            borderSide: BorderSide(
                               color: AppColors.primary,
                               width: 1.5,
                             ),

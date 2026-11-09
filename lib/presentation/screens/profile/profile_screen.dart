@@ -475,7 +475,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: AppColors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.brightness_6_outlined,
                   color: AppColors.primary,
                   size: 22,

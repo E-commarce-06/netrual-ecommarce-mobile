@@ -78,7 +78,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         shape: BoxShape.circle,
                         color: AppColors.primary.withOpacity(isDark ? 0.2 : 0.1),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.lock_reset_outlined,
                         size: 48,
                         color: AppColors.primary,
@@ -165,7 +165,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
+                                borderSide: BorderSide(
                                   color: AppColors.primary,
                                   width: 2,
                                 ),
@@ -238,7 +238,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       WidgetSpan(
                         child: GestureDetector(
                           onTap: () => Navigator.of(context).pop(),
-                          child: const Text(
+                          child: Text(
                             'Login',
                             style: TextStyle(
                               fontSize: 14,

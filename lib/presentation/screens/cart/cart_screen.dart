@@ -257,7 +257,7 @@ class _CartScreenState extends State<CartScreen> with WidgetsBindingObserver {
 
   Widget _buildBody(bool isDark) {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppColors.primary),
       );
     }
@@ -453,7 +453,7 @@ class _CartScreenState extends State<CartScreen> with WidgetsBindingObserver {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: _updatingItems.contains(item.id)
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 88,
                                 height: 32,
                                 child: Center(
@@ -501,7 +501,7 @@ class _CartScreenState extends State<CartScreen> with WidgetsBindingObserver {
                                         item.id, item.quantity + 1),
                                     child: Container(
                                       padding: const EdgeInsets.all(6),
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.add,
                                         size: 16,
                                         color: AppColors.primary,
@@ -683,7 +683,7 @@ class _CartScreenState extends State<CartScreen> with WidgetsBindingObserver {
                   try {
                     // Show loading
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
+                       SnackBar(
                         content: Row(
                           children: [
                             SizedBox(

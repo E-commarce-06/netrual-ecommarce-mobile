@@ -406,7 +406,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Padding(
+                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12),
                       child: Icon(
                         Icons.search,
@@ -815,7 +815,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () {
                   Navigator.pushNamed(context, '/featured-products');
                 },
-                child: const Text(
+                child: Text(
                   'See All',
                   style: TextStyle(
                     color: AppColors.primary,
@@ -921,7 +921,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () {
                   Navigator.pushNamed(context, '/flash-sales');
                 },
-                child: const Text(
+                child: Text(
                   'See All',
                   style: TextStyle(
                     color: AppColors.primary,
@@ -1016,7 +1016,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () {
                   Navigator.pushNamed(context, '/new-arrivals');
                 },
-                child: const Text(
+                child: Text(
                   'See All',
                   style: TextStyle(
                     color: AppColors.primary,

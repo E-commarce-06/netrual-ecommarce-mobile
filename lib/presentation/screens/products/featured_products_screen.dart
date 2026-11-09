@@ -486,7 +486,7 @@ class _FeaturedProductsScreenState extends State<FeaturedProductsScreen> {
                                 ),
                               Text(
                                 '${product.currency} ${product.finalPrice.toStringAsFixed(2)}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.primary,

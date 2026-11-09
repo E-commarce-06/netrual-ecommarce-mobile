@@ -221,7 +221,7 @@ class _OnboardingPage extends StatelessWidget {
                           color: isDark 
                               ? AppColors.surfaceDark 
                               : AppColors.surfaceLight,
-                          child: const Center(
+                          child: Center(
                             child: Icon(
                               Icons.shopping_bag,
                               size: 100,

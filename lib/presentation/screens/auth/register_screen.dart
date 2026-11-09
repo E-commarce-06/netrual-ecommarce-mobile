@@ -100,7 +100,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-        borderSide: const BorderSide(
+        borderSide: BorderSide(
           color: AppColors.primary,
           width: 1.5,
         ),
@@ -555,7 +555,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               WidgetSpan(
                                 child: GestureDetector(
                                   onTap: () => Navigator.of(context).pop(),
-                                  child: const Text(
+                                  child: Text(
                                     'Login',
                                     style: TextStyle(
                                       fontSize: 16,

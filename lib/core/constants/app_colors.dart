@@ -1,13 +1,34 @@
 import 'package:flutter/material.dart';
 
-/// App color palette based on the design system
+/// Shared app palette with safe, validated runtime brand colors.
 class AppColors {
   AppColors._();
 
-  // Primary Colors
-  static const Color primary = Color(0xFF137FEC);
-  static const Color primaryDark = Color(0xFF0C62B8);
-  static const Color primaryLight = Color(0xFF3B9BFF);
+  static const Color _defaultPrimary = Color(0xFF1268C4);
+  static const Color _defaultAccent = Color(0xFF0C62B8);
+  static Color _brandPrimary = _defaultPrimary;
+  static Color _brandAccent = _defaultAccent;
+
+  static Color get primary => _brandPrimary;
+  static Color get accent => _brandAccent;
+  static Color get primaryDark => Color.lerp(_brandPrimary, Colors.black, 0.24)!;
+  static Color get primaryLight => Color.lerp(_brandPrimary, Colors.white, 0.20)!;
+  static List<Color> get primaryGradient => [primary, primaryDark];
+
+  /// Applies store colors only when they are strict six-digit RGB values.
+  /// Invalid or missing remote values fall back to the bundled palette.
+  static void applyBrandColors({String? primaryHex, String? accentHex}) {
+    _brandPrimary = _parseHexColor(primaryHex) ?? _defaultPrimary;
+    _brandAccent = _parseHexColor(accentHex) ?? _defaultAccent;
+  }
+
+  static Color? _parseHexColor(String? value) {
+    if (value == null || !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(value)) {
+      return null;
+    }
+    final color = Color(int.parse(value.substring(1), radix: 16) | 0xFF000000);
+    return 1.05 / (color.computeLuminance() + 0.05) >= 4.5 ? color : null;
+  }
 
   // Background Colors
   static const Color backgroundLight = Color(0xFFF6F7F8);
@@ -35,12 +56,6 @@ class AppColors {
 
   // Rating Colors
   static const Color starColor = Color(0xFFFFC107);
-
-  // Gradient Colors (for splash screen)
-  static const List<Color> primaryGradient = [
-    primary,
-    primaryDark,
-  ];
 
   // Dark mode colors
   static const Color darkText = Color(0xFFFFFFFF);

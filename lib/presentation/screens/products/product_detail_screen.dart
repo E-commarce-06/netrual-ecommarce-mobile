@@ -653,7 +653,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
             TextButton(
               onPressed: () {},
-              child: const Text(
+              child: Text(
                 'See All',
                 style: TextStyle(
                   fontSize: 14,

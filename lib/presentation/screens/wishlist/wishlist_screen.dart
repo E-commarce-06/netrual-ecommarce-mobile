@@ -461,7 +461,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                         Flexible(
                           child: PriceText(
                             amount: product.specialPrice!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
@@ -483,7 +483,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                         Flexible(
                           child: PriceText(
                             amount: product.price,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,

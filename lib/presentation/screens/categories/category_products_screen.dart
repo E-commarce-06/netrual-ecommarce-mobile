@@ -302,7 +302,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
         ),
       ),
       trailing:
-          isSelected ? const Icon(Icons.check, color: AppColors.primary) : null,
+          isSelected ? Icon(Icons.check, color: AppColors.primary) : null,
       onTap: () {
         setState(() {
           _selectedSort = sort;
@@ -606,7 +606,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                         Flexible(
                           child: PriceText(
                             amount: product.specialPrice!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
@@ -628,7 +628,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                         Flexible(
                           child: PriceText(
                             amount: product.price,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
@@ -641,7 +641,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                         child: Container(
                           width: 26,
                           height: 26,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             color: AppColors.primary,
                             shape: BoxShape.circle,
                           ),

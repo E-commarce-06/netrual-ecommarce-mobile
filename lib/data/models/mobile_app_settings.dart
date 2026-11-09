@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../../core/config/deployment_config.dart';
 
 /// Safe, public, store-managed presentation settings returned by the backend.
@@ -11,6 +13,8 @@ class MobileAppSettings {
     this.description = '',
     this.logoUrl,
     this.authLogoUrl,
+    this.primaryColor = '#1268C4',
+    this.accentColor = '#0C62B8',
     this.supportEmail = '',
     this.supportPhone = '',
     this.supportWhatsApp = '',
@@ -29,6 +33,8 @@ class MobileAppSettings {
   final String description;
   final String? logoUrl;
   final String? authLogoUrl;
+  final String primaryColor;
+  final String accentColor;
   final String supportEmail;
   final String supportPhone;
   final String supportWhatsApp;
@@ -51,6 +57,7 @@ class MobileAppSettings {
   factory MobileAppSettings.fromApiData(Map<String, dynamic> data) {
     final config = _map(data['mobile_config']);
     final brand = _map(config['brand']);
+    final colors = _map(brand['colors']);
     final support = _map(config['support']);
     final store = _map(config['store']);
     final policies = _map(config['policies']);
@@ -73,6 +80,8 @@ class MobileAppSettings {
       description: _text(brand['description'], maxLength: 20000),
       logoUrl: siteLogo,
       authLogoUrl: authLogo,
+      primaryColor: _hexColor(colors['primary'], fallback: '#1268C4'),
+      accentColor: _hexColor(colors['accent'], fallback: '#0C62B8'),
       supportEmail: _text(support['email'], maxLength: 255),
       supportPhone: _text(
         support['phone'] ?? data['contact_phone'],
@@ -97,6 +106,7 @@ class MobileAppSettings {
           'description': description,
           'logo_url': logoUrl,
           'auth_logo_url': authLogoUrl,
+          'colors': {'primary': primaryColor, 'accent': accentColor},
         },
         'support': {
           'email': supportEmail,
@@ -126,6 +136,26 @@ class MobileAppSettings {
     if (value is! String) return fallback;
     final cleaned = value.trim();
     return cleaned.length <= maxLength ? cleaned : fallback;
+  }
+
+  static String _hexColor(dynamic value, {required String fallback}) {
+    if (value is! String || !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(value)) {
+      return fallback;
+    }
+
+    double linearChannel(int offset) {
+      final channel = int.parse(value.substring(offset, offset + 2), radix: 16) / 255;
+      return channel <= 0.04045
+          ? channel / 12.92
+          : math.pow((channel + 0.055) / 1.055, 2.4).toDouble();
+    }
+
+    final luminance =
+        0.2126 * linearChannel(1) +
+        0.7152 * linearChannel(3) +
+        0.0722 * linearChannel(5);
+    if (1.05 / (luminance + 0.05) < 4.5) return fallback;
+    return value.toUpperCase();
   }
 
   /// Converts the admin rich-text policy HTML to inert display text. Never
