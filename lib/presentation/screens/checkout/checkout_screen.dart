@@ -183,12 +183,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         (addr) => addr['id'] == _selectedShippingAddressId,
         orElse: () => {},
       );
+      final selectedBillingAddress = _useShippingAddressForBilling
+          ? null
+          : _addresses.firstWhere(
+              (addr) => addr['id'] == _selectedBillingAddressId,
+              orElse: () => null,
+            );
       
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => ShippingScreen(
             selectedAddress: selectedAddress,
+            billingAddressId: _useShippingAddressForBilling
+                ? null
+                : _selectedBillingAddressId,
+            billingAddress: selectedBillingAddress,
           ),
         ),
       );

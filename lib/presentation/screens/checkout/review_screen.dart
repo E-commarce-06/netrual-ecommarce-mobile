@@ -16,6 +16,8 @@ class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> selectedAddress;
   final Map<String, dynamic> selectedShippingMethod;
   final Map<String, dynamic> selectedPaymentMethod;
+  final int? billingAddressId;
+  final Map<String, dynamic>? billingAddress;
   
   const ReviewScreen({
     super.key,
@@ -23,6 +25,8 @@ class ReviewScreen extends StatefulWidget {
     required this.selectedAddress,
     required this.selectedShippingMethod,
     required this.selectedPaymentMethod,
+    this.billingAddressId,
+    this.billingAddress,
   });
 
   @override
@@ -119,27 +123,32 @@ class _ReviewScreenState extends State<ReviewScreen> {
       if (paymentMethodCode.toLowerCase() == 'razorpay') {
         await _processRazorpayPayment(
           shippingAddressId: shippingAddressId,
+          billingAddressId: widget.billingAddressId,
           notes: notes.isNotEmpty ? notes : null,
         );
       } else if (paymentMethodCode.toLowerCase() == 'stripe') {
         await _processStripePayment(
           shippingAddressId: shippingAddressId,
+          billingAddressId: widget.billingAddressId,
           notes: notes.isNotEmpty ? notes : null,
         );
       } else if (paymentMethodCode.toLowerCase() == 'paypal') {
         await _processPayPalPayment(
           shippingAddressId: shippingAddressId,
+          billingAddressId: widget.billingAddressId,
           notes: notes.isNotEmpty ? notes : null,
         );
       } else if (paymentMethodCode.toLowerCase() == 'phonepe') {
         await _processPhonePePayment(
           shippingAddressId: shippingAddressId,
+          billingAddressId: widget.billingAddressId,
           notes: notes.isNotEmpty ? notes : null,
         );
       } else {
         // COD, Bank Transfer, etc.
         await _placeOrderDirect(
           shippingAddressId: shippingAddressId,
+          billingAddressId: widget.billingAddressId,
           paymentMethod: paymentMethodCode,
           notes: notes.isNotEmpty ? notes : null,
         );
@@ -161,6 +170,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _processRazorpayPayment({
     required int shippingAddressId,
+    int? billingAddressId,
     String? notes,
   }) async {
     try {
@@ -174,6 +184,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
       // Step 2: place order first — backend creates internal order + Razorpay order
       final orderResult = await _checkoutService.placeOrder(
         shippingAddressId: shippingAddressId,
+        billingAddressId: billingAddressId,
         paymentMethod: 'razorpay',
         notes: notes,
       );
@@ -296,6 +307,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _processStripePayment({
     required int shippingAddressId,
+    int? billingAddressId,
     String? notes,
   }) async {
     try {
@@ -342,6 +354,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
           // placeOrder first (same pattern as Razorpay/PhonePe)
           final result = await _checkoutService.placeOrder(
             shippingAddressId: shippingAddressId,
+            billingAddressId: billingAddressId,
             paymentMethod: 'stripe',
             notes: notes,
             paymentId: paymentIntentId,
@@ -423,7 +436,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
       // Present Stripe payment sheet
       // Get billing address from checkout summary
-      final billingAddressData = widget.checkoutSummary['billing_address'];
+      final billingAddressData =
+          widget.billingAddress ?? widget.checkoutSummary['billing_address'];
       
       // Determine which address to use for billing
       Map<String, dynamic> addressToUse;
@@ -511,6 +525,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _processPhonePePayment({
     required int shippingAddressId,
+    int? billingAddressId,
     String? notes,
   }) async {
     try {
@@ -528,6 +543,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
       //    to this internal order and returns the authoritative token.
       final orderResult = await _checkoutService.placeOrder(
         shippingAddressId: shippingAddressId,
+        billingAddressId: billingAddressId,
         paymentMethod: 'phonepe',
         notes: notes,
       );
@@ -629,6 +645,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _processPayPalPayment({
     required int shippingAddressId,
+    int? billingAddressId,
     String? notes,
   }) async {
     try {
@@ -636,6 +653,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
       //    paypal_order_id + approve_url.
       final orderResult = await _checkoutService.placeOrder(
         shippingAddressId: shippingAddressId,
+        billingAddressId: billingAddressId,
         paymentMethod: 'paypal',
         notes: notes,
       );
@@ -727,6 +745,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _placeOrderDirect({
     required int shippingAddressId,
+    int? billingAddressId,
     required String paymentMethod,
     String? notes,
   }) async {
@@ -737,6 +756,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
       // Place the order via API
       final result = await _checkoutService.placeOrder(
         shippingAddressId: shippingAddressId,
+        billingAddressId: billingAddressId,
         paymentMethod: paymentMethod,
         notes: notes,
       );

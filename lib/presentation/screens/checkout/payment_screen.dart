@@ -9,6 +9,8 @@ class PaymentScreen extends StatefulWidget {
   final Map<String, dynamic>? checkoutSummary;
   final Map<String, dynamic> selectedAddress;
   final Map<String, dynamic> selectedShippingMethod;
+  final int? billingAddressId;
+  final Map<String, dynamic>? billingAddress;
 
   const PaymentScreen({
     super.key,
@@ -16,6 +18,8 @@ class PaymentScreen extends StatefulWidget {
     this.checkoutSummary,
     required this.selectedAddress,
     required this.selectedShippingMethod,
+    this.billingAddressId,
+    this.billingAddress,
   });
 
   @override
@@ -231,6 +235,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                         selectedAddress: widget.selectedAddress,
                                         selectedShippingMethod: widget.selectedShippingMethod,
                                         selectedPaymentMethod: selectedPaymentMethod,
+                                        billingAddressId: widget.billingAddressId,
+                                        billingAddress: widget.billingAddress,
                                       ),
                                     ),
                                   );

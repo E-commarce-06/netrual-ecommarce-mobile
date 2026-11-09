@@ -5,10 +5,14 @@ import 'package:cartxis_app/presentation/screens/checkout/payment_screen.dart';
 
 class ShippingScreen extends StatefulWidget {
   final Map<String, dynamic> selectedAddress;
+  final int? billingAddressId;
+  final Map<String, dynamic>? billingAddress;
   
   const ShippingScreen({
     super.key,
     required this.selectedAddress,
+    this.billingAddressId,
+    this.billingAddress,
   });
 
   @override
@@ -213,6 +217,8 @@ class _ShippingScreenState extends State<ShippingScreen> {
                                         checkoutSummary: checkoutSummary,
                                         selectedAddress: widget.selectedAddress,
                                         selectedShippingMethod: selectedShippingMethod,
+                                        billingAddressId: widget.billingAddressId,
+                                        billingAddress: widget.billingAddress,
                                       ),
                                     ),
                                   );

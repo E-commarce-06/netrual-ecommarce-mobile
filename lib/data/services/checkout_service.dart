@@ -1,7 +1,10 @@
 import 'package:cartxis_app/core/network/api_client.dart';
 
 class CheckoutService {
-  final ApiClient _apiClient = ApiClient();
+  CheckoutService({ApiClient? apiClient})
+      : _apiClient = apiClient ?? ApiClient();
+
+  final ApiClient _apiClient;
 
   /// Initialize checkout process
   Future<Map<String, dynamic>> initCheckout() async {
@@ -67,7 +70,7 @@ class CheckoutService {
         '/api/v1/checkout/billing-address',
         body: {
           if (addressId != null) 'address_id': addressId,
-          'use_shipping_address': useShippingAddress,
+          'same_as_shipping': useShippingAddress,
         },
       );
       
@@ -213,6 +216,7 @@ class CheckoutService {
   /// Place order
   Future<Map<String, dynamic>> placeOrder({
     required int shippingAddressId,
+    int? billingAddressId,
     required String paymentMethod,
     String? notes,
     String? paymentId,
@@ -225,6 +229,7 @@ class CheckoutService {
         '/api/v1/checkout/place-order',
         body: {
           'shipping_address_id': shippingAddressId,
+          if (billingAddressId != null) 'billing_address_id': billingAddressId,
           'payment_method': paymentMethod,
           if (notes != null && notes.isNotEmpty) 'notes': notes,
           if (paymentId != null) 'payment_id': paymentId,
