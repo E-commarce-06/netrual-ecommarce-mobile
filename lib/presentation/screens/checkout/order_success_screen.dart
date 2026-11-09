@@ -7,12 +7,16 @@ class OrderSuccessScreen extends StatefulWidget {
   final String orderNumber;
   final double totalAmount;
   final String estimatedDelivery;
+  final bool paymentPending;
+  final String? paymentStatusMessage;
 
   const OrderSuccessScreen({
     super.key,
     required this.orderNumber,
     required this.totalAmount,
     required this.estimatedDelivery,
+    this.paymentPending = false,
+    this.paymentStatusMessage,
   });
 
   @override
@@ -73,18 +77,22 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                       _buildSuccessIcon(isDark),
                       const SizedBox(height: 32),
                       Text(
-                        'Order Placed!',
+                        widget.paymentPending
+                            ? 'Order Received'
+                            : 'Order Placed!',
                         style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
                           letterSpacing: -0.5,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Your order has been placed successfully. Thank you for shopping with us!',
+                        widget.paymentStatusMessage ??
+                            'Your order has been placed successfully. Thank you for shopping with us!',
                         style: TextStyle(
                           fontSize: 18,
                           color: isDark
@@ -156,8 +164,8 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.check,
+              child: Icon(
+                widget.paymentPending ? Icons.hourglass_top : Icons.check,
                 color: Colors.white,
                 size: 56,
               ),
@@ -199,7 +207,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
       builder: (context, child) {
         final delay = delayMilliseconds / 1000;
         final value = (_decorationsController.value + delay) % 1.0;
-        
+
         return Transform.translate(
           offset: offset,
           child: Transform.translate(
@@ -330,7 +338,8 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                   '/order-detail',
                   arguments: {
                     'orderNumber': widget.orderNumber,
-                    'orderDate': 'Placed on ${DateTime.now().toString().substring(0, 10)} at ${TimeOfDay.now().format(context)}',
+                    'orderDate':
+                        'Placed on ${DateTime.now().toString().substring(0, 10)} at ${TimeOfDay.now().format(context)}',
                     'orderStatus': 'Processing',
                     'totalAmount': widget.totalAmount,
                   },
@@ -372,9 +381,12 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                 );
               },
               style: OutlinedButton.styleFrom(
-                foregroundColor: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                foregroundColor:
+                    isDark ? Colors.grey.shade300 : Colors.grey.shade700,
                 side: BorderSide(
-                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0),
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

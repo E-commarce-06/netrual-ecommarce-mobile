@@ -159,6 +159,8 @@ class AppRouter {
             orderNumber: args?['orderNumber'] ?? '#VX-000000',
             totalAmount: args?['totalAmount'] ?? 0.0,
             estimatedDelivery: args?['estimatedDelivery'] ?? 'TBD',
+            paymentPending: args?['paymentPending'] == true,
+            paymentStatusMessage: args?['paymentStatusMessage'] as String?,
           ),
           settings: settings,
         );

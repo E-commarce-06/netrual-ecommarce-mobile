@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cartxis_app/core/network/api_client.dart';
 
 class CheckoutService {
@@ -10,7 +12,7 @@ class CheckoutService {
   Future<Map<String, dynamic>> initCheckout() async {
     try {
       final response = await _apiClient.get('/api/v1/checkout/init');
-      
+
       if (response['success'] == true) {
         return response['data'] ?? {};
       } else {
@@ -41,18 +43,20 @@ class CheckoutService {
           'last_name': lastName,
           'phone': phone,
           'address_line_1': addressLine1,
-          if (addressLine2 != null && addressLine2.isNotEmpty) 'address_line_2': addressLine2,
+          if (addressLine2 != null && addressLine2.isNotEmpty)
+            'address_line_2': addressLine2,
           'city': city,
           'state': state,
           'postal_code': postalCode,
           'country': country,
         },
       );
-      
+
       if (response['success'] == true) {
         return response['data'] ?? {};
       } else {
-        throw Exception(response['message'] ?? 'Failed to set shipping address');
+        throw Exception(
+            response['message'] ?? 'Failed to set shipping address');
       }
     } catch (e) {
       rethrow;
@@ -65,7 +69,6 @@ class CheckoutService {
     bool useShippingAddress = false,
   }) async {
     try {
-      
       final response = await _apiClient.post(
         '/api/v1/checkout/billing-address',
         body: {
@@ -73,7 +76,7 @@ class CheckoutService {
           'same_as_shipping': useShippingAddress,
         },
       );
-      
+
       if (response['success'] == true) {
         return response['data'] ?? {};
       } else {
@@ -85,15 +88,21 @@ class CheckoutService {
   }
 
   /// Get available shipping methods
-  Future<List<dynamic>> getShippingMethods() async {
+  Future<List<dynamic>> getShippingMethods({int? shippingAddressId}) async {
     try {
-      final response = await _apiClient.get('/api/v1/checkout/shipping-methods');
-      
-      
+      final response = await _apiClient.get(
+        '/api/v1/checkout/shipping-methods',
+        queryParameters: {
+          if (shippingAddressId != null)
+            'shipping_address_id': shippingAddressId,
+        },
+      );
+
       if (response['success'] == true) {
         return response['data'] ?? [];
       } else {
-        throw Exception(response['message'] ?? 'Failed to fetch shipping methods');
+        throw Exception(
+            response['message'] ?? 'Failed to fetch shipping methods');
       }
     } catch (e) {
       rethrow;
@@ -107,8 +116,7 @@ class CheckoutService {
         '/api/v1/checkout/shipping-method',
         body: {'shipping_method_code': shippingMethod},
       );
-      
-      
+
       if (response['success'] == true) {
         return response['data'] ?? {};
       } else {
@@ -124,11 +132,12 @@ class CheckoutService {
   Future<List<dynamic>> getPaymentMethods() async {
     try {
       final response = await _apiClient.get('/api/v1/checkout/payment-methods');
-      
+
       if (response['success'] == true) {
         return response['data'] ?? [];
       } else {
-        throw Exception(response['message'] ?? 'Failed to fetch payment methods');
+        throw Exception(
+            response['message'] ?? 'Failed to fetch payment methods');
       }
     } catch (e) {
       rethrow;
@@ -136,14 +145,23 @@ class CheckoutService {
   }
 
   /// Set payment method
-  Future<Map<String, dynamic>> setPaymentMethod(String paymentMethod) async {
+  Future<Map<String, dynamic>> setPaymentMethod(
+    String paymentMethod, {
+    int? shippingAddressId,
+    String? shippingMethodCode,
+  }) async {
     try {
       final response = await _apiClient.post(
         '/api/v1/checkout/payment-method',
-        body: {'payment_method_code': paymentMethod},
+        body: {
+          'payment_method_code': paymentMethod,
+          if (shippingAddressId != null)
+            'shipping_address_id': shippingAddressId,
+          if (shippingMethodCode != null)
+            'shipping_method_code': shippingMethodCode,
+        },
       );
-      
-      
+
       if (response['success'] == true) {
         return response['data'] ?? {};
       } else {
@@ -155,14 +173,26 @@ class CheckoutService {
   }
 
   /// Get checkout summary
-  Future<Map<String, dynamic>> getCheckoutSummary() async {
+  Future<Map<String, dynamic>> getCheckoutSummary({
+    String? shippingMethodCode,
+    int? shippingAddressId,
+  }) async {
     try {
-      final response = await _apiClient.get('/api/v1/checkout/summary');
-      
+      final response = await _apiClient.get(
+        '/api/v1/checkout/summary',
+        queryParameters: {
+          if (shippingMethodCode != null)
+            'shipping_method_code': shippingMethodCode,
+          if (shippingAddressId != null)
+            'shipping_address_id': shippingAddressId,
+        },
+      );
+
       if (response['success'] == true) {
         return response['data'] ?? {};
       } else {
-        throw Exception(response['message'] ?? 'Failed to fetch checkout summary');
+        throw Exception(
+            response['message'] ?? 'Failed to fetch checkout summary');
       }
     } catch (e) {
       rethrow;
@@ -194,9 +224,11 @@ class CheckoutService {
         body: {
           'order_id': orderId,
           if (transactionId != null) 'transaction_id': transactionId,
-          if (razorpayPaymentId != null) 'razorpay_payment_id': razorpayPaymentId,
+          if (razorpayPaymentId != null)
+            'razorpay_payment_id': razorpayPaymentId,
           if (razorpayOrderId != null) 'razorpay_order_id': razorpayOrderId,
-          if (razorpaySignature != null) 'razorpay_signature': razorpaySignature,
+          if (razorpaySignature != null)
+            'razorpay_signature': razorpaySignature,
           if (paymentIntentId != null) 'payment_intent_id': paymentIntentId,
           if (paypalOrderId != null) 'paypal_order_id': paypalOrderId,
         },
@@ -217,6 +249,7 @@ class CheckoutService {
   Future<Map<String, dynamic>> placeOrder({
     required int shippingAddressId,
     int? billingAddressId,
+    String? shippingMethodCode,
     required String paymentMethod,
     String? notes,
     String? paymentId,
@@ -224,12 +257,13 @@ class CheckoutService {
     String? signature,
   }) async {
     try {
-      
       final response = await _apiClient.post(
         '/api/v1/checkout/place-order',
         body: {
           'shipping_address_id': shippingAddressId,
           if (billingAddressId != null) 'billing_address_id': billingAddressId,
+          if (shippingMethodCode != null)
+            'shipping_method_code': shippingMethodCode,
           'payment_method': paymentMethod,
           if (notes != null && notes.isNotEmpty) 'notes': notes,
           if (paymentId != null) 'payment_id': paymentId,
@@ -237,14 +271,12 @@ class CheckoutService {
           if (signature != null) 'signature': signature,
         },
       );
-      
-      
+
       if (response['success'] == true) {
         return response['data'] ?? {};
       } else {
         // Log validation errors if present
-        if (response['errors'] != null) {
-        }
+        if (response['errors'] != null) {}
         final errorMsg = response['message'] ?? 'Failed to place order';
         final errorCode = response['error_code'] ?? 'UNKNOWN_ERROR';
         throw Exception('$errorMsg (Code: $errorCode)');
@@ -252,5 +284,30 @@ class CheckoutService {
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// Submit a customer receipt for manual bank or mobile-wallet transfer.
+  /// The backend stores this as evidence awaiting staff review; it does not
+  /// mark the order paid.
+  Future<Map<String, dynamic>> submitManualPayment({
+    required int orderId,
+    required String destinationId,
+    required File proof,
+    String? transferReference,
+  }) async {
+    final response = await _apiClient.postMultipart(
+      '/api/v1/customer/orders/$orderId/manual-payment',
+      fields: {
+        'destination_id': destinationId,
+        if (transferReference != null && transferReference.trim().isNotEmpty)
+          'transfer_reference': transferReference.trim(),
+      },
+      files: {'payment_proof': proof},
+    );
+
+    if (response['success'] == true) {
+      return response['data'] ?? {};
+    }
+    throw Exception(response['message'] ?? 'Failed to submit transfer proof');
   }
 }

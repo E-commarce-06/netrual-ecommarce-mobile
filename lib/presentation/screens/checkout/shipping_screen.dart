@@ -7,7 +7,7 @@ class ShippingScreen extends StatefulWidget {
   final Map<String, dynamic> selectedAddress;
   final int? billingAddressId;
   final Map<String, dynamic>? billingAddress;
-  
+
   const ShippingScreen({
     super.key,
     required this.selectedAddress,
@@ -35,15 +35,19 @@ class _ShippingScreenState extends State<ShippingScreen> {
   Future<void> _fetchData() async {
     try {
       final results = await Future.wait([
-        _checkoutService.getShippingMethods(),
+        _checkoutService.getShippingMethods(
+          shippingAddressId: int.tryParse(
+            widget.selectedAddress['id']?.toString() ?? '',
+          ),
+        ),
         _checkoutService.getPaymentMethods(),
       ]);
-      
+
       setState(() {
         _shippingOptions = results[0];
         _paymentMethods = results[1];
         _isLoading = false;
-        
+
         // Auto-select first shipping method
         if (_shippingOptions.isNotEmpty) {
           _selectedShipping = _shippingOptions[0]['code'];
@@ -69,7 +73,8 @@ class _ShippingScreenState extends State<ShippingScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101922) : const Color(0xFFF6F7F8),
+      backgroundColor:
+          isDark ? const Color(0xFF101922) : const Color(0xFFF6F7F8),
       body: Stack(
         children: [
           // Main scrollable content
@@ -79,9 +84,8 @@ class _ShippingScreenState extends State<ShippingScreen> {
               SliverAppBar(
                 pinned: true,
                 elevation: 0,
-                backgroundColor: isDark
-                    ? const Color(0xFF101922)
-                    : const Color(0xFFF6F7F8),
+                backgroundColor:
+                    isDark ? const Color(0xFF101922) : const Color(0xFFF6F7F8),
                 foregroundColor:
                     isDark ? Colors.white : const Color(0xFF0F172A),
                 iconTheme: IconThemeData(
@@ -120,7 +124,8 @@ class _ShippingScreenState extends State<ShippingScreen> {
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                           height: 1.2,
                         ),
                       ),
@@ -142,7 +147,9 @@ class _ShippingScreenState extends State<ShippingScreen> {
                                     child: Text(
                                       'No shipping methods available',
                                       style: TextStyle(
-                                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                        color: isDark
+                                            ? Colors.grey.shade400
+                                            : Colors.grey.shade600,
                                       ),
                                     ),
                                   ),
@@ -151,7 +158,8 @@ class _ShippingScreenState extends State<ShippingScreen> {
                                   shrinkWrap: true,
                                   physics: const NeverScrollableScrollPhysics(),
                                   itemCount: _shippingOptions.length,
-                                  separatorBuilder: (context, index) => const SizedBox(height: 16),
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(height: 16),
                                   itemBuilder: (context, index) {
                                     final option = _shippingOptions[index];
                                     return _buildShippingOption(option, isDark);
@@ -171,13 +179,13 @@ class _ShippingScreenState extends State<ShippingScreen> {
             right: 0,
             child: Container(
               decoration: BoxDecoration(
-                color: isDark 
-                    ? const Color(0xFF101922).withOpacity(0.9) 
+                color: isDark
+                    ? const Color(0xFF101922).withOpacity(0.9)
                     : const Color(0xFFF6F7F8).withOpacity(0.9),
                 border: Border(
                   top: BorderSide(
-                    color: isDark 
-                        ? const Color(0xFF334155) 
+                    color: isDark
+                        ? const Color(0xFF334155)
                         : const Color(0xFFE2E8F0),
                   ),
                 ),
@@ -196,17 +204,27 @@ class _ShippingScreenState extends State<ShippingScreen> {
                           : () async {
                               // Set selected shipping method
                               try {
-                                await _checkoutService.setShippingMethod(_selectedShipping!);
-                                
+                                await _checkoutService
+                                    .setShippingMethod(_selectedShipping!);
+
                                 // Get selected shipping method details
-                                final selectedShippingMethod = _shippingOptions.firstWhere(
-                                  (method) => method['code'] == _selectedShipping,
+                                final selectedShippingMethod =
+                                    _shippingOptions.firstWhere(
+                                  (method) =>
+                                      method['code'] == _selectedShipping,
                                   orElse: () => {},
                                 );
-                                
+
                                 // Fetch checkout summary
-                                final checkoutSummary = await _checkoutService.getCheckoutSummary();
-                                
+                                final checkoutSummary =
+                                    await _checkoutService.getCheckoutSummary(
+                                  shippingMethodCode: _selectedShipping,
+                                  shippingAddressId: int.tryParse(
+                                    widget.selectedAddress['id']?.toString() ??
+                                        '',
+                                  ),
+                                );
+
                                 // Navigate to payment screen
                                 if (mounted) {
                                   Navigator.push(
@@ -216,8 +234,10 @@ class _ShippingScreenState extends State<ShippingScreen> {
                                         paymentMethods: _paymentMethods,
                                         checkoutSummary: checkoutSummary,
                                         selectedAddress: widget.selectedAddress,
-                                        selectedShippingMethod: selectedShippingMethod,
-                                        billingAddressId: widget.billingAddressId,
+                                        selectedShippingMethod:
+                                            selectedShippingMethod,
+                                        billingAddressId:
+                                            widget.billingAddressId,
                                         billingAddress: widget.billingAddress,
                                       ),
                                     ),
@@ -227,7 +247,8 @@ class _ShippingScreenState extends State<ShippingScreen> {
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Failed to set shipping method: $e'),
+                                      content: Text(
+                                          'Failed to set shipping method: $e'),
                                       backgroundColor: Colors.red,
                                     ),
                                   );
@@ -315,7 +336,8 @@ class _ShippingScreenState extends State<ShippingScreen> {
             Container(
               height: 6,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -367,17 +389,17 @@ class _ShippingScreenState extends State<ShippingScreen> {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: isSelected 
-                  ? (isDark 
-                      ? AppColors.primary.withOpacity(0.1) 
+              color: isSelected
+                  ? (isDark
+                      ? AppColors.primary.withOpacity(0.1)
                       : const Color(0xFFEFF6FF))
                   : (isDark ? const Color(0xFF1F2937) : Colors.white),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected 
-                    ? AppColors.primary 
-                    : (isDark 
-                        ? const Color(0xFF374151) 
+                color: isSelected
+                    ? AppColors.primary
+                    : (isDark
+                        ? const Color(0xFF374151)
                         : const Color(0xFFE2E8F0)),
                 width: 2,
               ),
@@ -406,10 +428,10 @@ class _ShippingScreenState extends State<ShippingScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isSelected 
-                          ? AppColors.primary 
-                          : (isDark 
-                              ? const Color(0xFF64748B) 
+                      color: isSelected
+                          ? AppColors.primary
+                          : (isDark
+                              ? const Color(0xFF64748B)
                               : const Color(0xFFCBD5E1)),
                       width: 2,
                     ),
@@ -441,7 +463,8 @@ class _ShippingScreenState extends State<ShippingScreen> {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -449,8 +472,8 @@ class _ShippingScreenState extends State<ShippingScreen> {
                         description,
                         style: TextStyle(
                           fontSize: 12,
-                          color: isDark 
-                              ? Colors.grey.shade400 
+                          color: isDark
+                              ? Colors.grey.shade400
                               : Colors.grey.shade600,
                         ),
                       ),
@@ -464,6 +487,4 @@ class _ShippingScreenState extends State<ShippingScreen> {
       ),
     );
   }
-
 }
-

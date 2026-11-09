@@ -34,11 +34,50 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   void initState() {
     super.initState();
-    // Auto-select first payment method
-    if (widget.paymentMethods.isNotEmpty) {
-      _selectedPayment = widget.paymentMethods[0]['code'];
+    final supported = widget.paymentMethods
+        .whereType<Map<String, dynamic>>()
+        .where(_isMobileSupported)
+        .toList();
+    if (supported.isNotEmpty) {
+      final defaultMethod = supported.firstWhere(
+        (method) => method['is_default'] == true,
+        orElse: () => supported.first,
+      );
+      _selectedPayment = defaultMethod['code']?.toString();
     }
   }
+
+  bool _isMobileSupported(Map<String, dynamic> method) {
+    if (method['mobile_supported'] == false) return false;
+    if (method['code'] == 'bank_transfer') {
+      final config = method['manual_payment'];
+      final destinations = config is Map ? config['destinations'] : null;
+      if (destinations is! List || destinations.isEmpty) return false;
+    }
+    final flow = method['mobile_flow'];
+    if (flow is String && flow.isNotEmpty) return true;
+
+    // Compatibility with the current API during staggered mobile/backend rollout.
+    return const {
+      'cod',
+      'bank_transfer',
+      'razorpay',
+      'stripe',
+      'paypal',
+      'phonepe'
+    }.contains(method['code']);
+  }
+
+  Map<String, dynamic>? get _selectedMethod {
+    for (final candidate
+        in widget.paymentMethods.whereType<Map<String, dynamic>>()) {
+      if (candidate['code'] == _selectedPayment) return candidate;
+    }
+    return null;
+  }
+
+  bool get _canContinue =>
+      _selectedMethod != null && _isMobileSupported(_selectedMethod!);
 
   IconData _getIconForPaymentMethod(String iconName) {
     switch (iconName) {
@@ -77,7 +116,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101922) : const Color(0xFFF6F7F8),
+      backgroundColor:
+          isDark ? const Color(0xFF101922) : const Color(0xFFF6F7F8),
       body: Stack(
         children: [
           // Main scrollable content
@@ -128,7 +168,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                           height: 1.2,
                         ),
                       ),
@@ -136,16 +177,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       const SizedBox(height: 16),
 
                       // Payment Methods
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: widget.paymentMethods.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final method = widget.paymentMethods[index];
-                          return _buildPaymentOption(method, isDark);
-                        },
-                      ),
+                      if (widget.paymentMethods.isEmpty)
+                        const Text(
+                            'No payment methods are currently configured.')
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: widget.paymentMethods.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final method = widget.paymentMethods[index];
+                            return _buildPaymentOption(method, isDark);
+                          },
+                        ),
                     ],
                   ),
                 ),
@@ -163,8 +209,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 color: isDark ? const Color(0xFF1E2936) : Colors.white,
                 border: Border(
                   top: BorderSide(
-                    color: isDark 
-                        ? const Color(0xFF334155) 
+                    color: isDark
+                        ? const Color(0xFF334155)
                         : const Color(0xFFE2E8F0),
                   ),
                 ),
@@ -189,16 +235,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           'Total to pay',
                           style: TextStyle(
                             fontSize: 14,
-                            color: isDark 
-                                ? Colors.grey.shade400 
+                            color: isDark
+                                ? Colors.grey.shade400
                                 : Colors.grey.shade600,
                           ),
                         ),
                         StyledPriceText(
-                          amount: (widget.checkoutSummary?['total'] as num?)?.toDouble() ?? 0.0,
+                          amount: (widget.checkoutSummary?['total'] as num?)
+                                  ?.toDouble() ??
+                              0.0,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ],
                     ),
@@ -207,24 +256,35 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
                     // Continue Button
                     ElevatedButton(
-                      onPressed: _isLoading || _selectedPayment == null
+                      onPressed: _isLoading || !_canContinue
                           ? null
                           : () async {
                               setState(() {
                                 _isLoading = true;
                               });
-                              
+
                               try {
                                 // Fetch checkout summary (payment method is set in review_screen
                                 // for each gateway — Razorpay, Stripe, and COD/PhonePe/others)
-                                final summary = await _checkoutService.getCheckoutSummary();
-                                
+                                final summary =
+                                    await _checkoutService.getCheckoutSummary(
+                                  shippingMethodCode: widget
+                                      .selectedShippingMethod['code']
+                                      ?.toString(),
+                                  shippingAddressId: int.tryParse(
+                                    widget.selectedAddress['id']?.toString() ??
+                                        '',
+                                  ),
+                                );
+
                                 // Get selected payment method details
-                                final selectedPaymentMethod = widget.paymentMethods.firstWhere(
-                                  (method) => method['code'] == _selectedPayment,
+                                final selectedPaymentMethod =
+                                    widget.paymentMethods.firstWhere(
+                                  (method) =>
+                                      method['code'] == _selectedPayment,
                                   orElse: () => {},
                                 );
-                                
+
                                 // Navigate to review screen
                                 if (mounted) {
                                   Navigator.push(
@@ -233,9 +293,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                       builder: (_) => ReviewScreen(
                                         checkoutSummary: summary,
                                         selectedAddress: widget.selectedAddress,
-                                        selectedShippingMethod: widget.selectedShippingMethod,
-                                        selectedPaymentMethod: selectedPaymentMethod,
-                                        billingAddressId: widget.billingAddressId,
+                                        selectedShippingMethod:
+                                            widget.selectedShippingMethod,
+                                        selectedPaymentMethod:
+                                            selectedPaymentMethod,
+                                        billingAddressId:
+                                            widget.billingAddressId,
                                         billingAddress: widget.billingAddress,
                                       ),
                                     ),
@@ -277,7 +340,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
                           else
@@ -289,7 +353,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               ),
                             ),
                           const SizedBox(width: 8),
-                          if (!_isLoading) const Icon(Icons.arrow_forward, size: 20),
+                          if (!_isLoading)
+                            const Icon(Icons.arrow_forward, size: 20),
                         ],
                       ),
                     ),
@@ -303,8 +368,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         Icon(
                           Icons.lock,
                           size: 14,
-                          color: isDark 
-                              ? Colors.grey.shade500 
+                          color: isDark
+                              ? Colors.grey.shade500
                               : Colors.grey.shade400,
                         ),
                         const SizedBox(width: 6),
@@ -314,8 +379,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.8,
-                            color: isDark 
-                                ? Colors.grey.shade500 
+                            color: isDark
+                                ? Colors.grey.shade500
                                 : Colors.grey.shade400,
                           ),
                         ),
@@ -409,29 +474,35 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final String name = method['name'] ?? '';
     final String description = method['description'] ?? '';
     final String iconName = method['icon'] ?? '';
+    final bool isSupported = _isMobileSupported(method);
+    final String supportReason = method['mobile_support_reason']?.toString() ??
+        'This payment option is not available in the mobile app yet.';
+    final String instructions = method['instructions']?.toString() ?? '';
 
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedPayment = code;
-        });
-      },
+      onTap: isSupported
+          ? () {
+              setState(() {
+                _selectedPayment = code;
+              });
+            }
+          : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? (isDark 
-                  ? AppColors.primary.withOpacity(0.1) 
-                  : AppColors.primary.withOpacity(0.05))
-              : (isDark ? const Color(0xFF1E2936) : Colors.white),
+          color: !isSupported
+              ? (isDark ? const Color(0xFF26313D) : const Color(0xFFF3F4F6))
+              : isSelected
+                  ? (isDark
+                      ? AppColors.primary.withOpacity(0.1)
+                      : AppColors.primary.withOpacity(0.05))
+                  : (isDark ? const Color(0xFF1E2936) : Colors.white),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected 
-                ? AppColors.primary 
-                : (isDark 
-                    ? const Color(0xFF334155) 
-                    : const Color(0xFFE2E8F0)),
+            color: isSelected
+                ? AppColors.primary
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
             width: 2,
           ),
           boxShadow: [
@@ -470,19 +541,48 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      color: isSupported
+                          ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                          : (isDark
+                              ? Colors.grey.shade500
+                              : Colors.grey.shade600),
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark 
-                          ? Colors.grey.shade400 
-                          : Colors.grey.shade600,
+                  if (description.isNotEmpty)
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                      ),
                     ),
-                  ),
+                  if (!isSupported) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      supportReason,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ] else if (instructions.isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      instructions,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -495,16 +595,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected 
-                      ? AppColors.primary 
-                      : (isDark 
-                          ? const Color(0xFF475569) 
+                  color: isSelected
+                      ? AppColors.primary
+                      : (isDark
+                          ? const Color(0xFF475569)
                           : const Color(0xFFCBD5E1)),
                   width: 2,
                 ),
-                color: isSelected 
-                    ? AppColors.primary 
-                    : Colors.transparent,
+                color: isSelected ? AppColors.primary : Colors.transparent,
               ),
               child: isSelected
                   ? const Icon(

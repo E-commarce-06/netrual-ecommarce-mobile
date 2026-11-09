@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:cartxis_app/core/config/mobile_app_settings_controller.dart';
@@ -18,7 +21,7 @@ class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> selectedPaymentMethod;
   final int? billingAddressId;
   final Map<String, dynamic>? billingAddress;
-  
+
   const ReviewScreen({
     super.key,
     required this.checkoutSummary,
@@ -41,6 +44,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
   final RazorpayService _razorpayService = RazorpayService();
   final StripeService _stripeService = StripeService();
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _transferReferenceController =
+      TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
+  File? _manualPaymentProof;
+  String? _selectedManualDestinationId;
+  Map<String, dynamic>? _createdManualOrder;
   List<Map<String, dynamic>> _cartItems = [];
   bool _isLoading = true;
   bool _isPlacingOrder = false;
@@ -48,6 +57,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
   @override
   void initState() {
     super.initState();
+    final destinations = _manualDestinations;
+    if (destinations.isNotEmpty) {
+      _selectedManualDestinationId = destinations.first['id']?.toString();
+    }
     _loadCartItems();
   }
 
@@ -62,9 +75,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
             if (firstImage is String) {
               imageUrl = firstImage;
             } else if (firstImage is Map<String, dynamic>) {
-              imageUrl = firstImage['url']?.toString() ?? 
-                         firstImage['path']?.toString() ?? 
-                         firstImage['image']?.toString() ?? '';
+              imageUrl = firstImage['url']?.toString() ??
+                  firstImage['path']?.toString() ??
+                  firstImage['image']?.toString() ??
+                  '';
             }
           }
           return {
@@ -86,15 +100,46 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
   }
 
-  double get _subtotal => (widget.checkoutSummary['subtotal'] as num?)?.toDouble() ?? 0.0;
-  double get _shipping => (widget.checkoutSummary['shipping_cost'] as num?)?.toDouble() ?? 0.0;
+  double get _subtotal =>
+      (widget.checkoutSummary['subtotal'] as num?)?.toDouble() ?? 0.0;
+  double get _shipping =>
+      (widget.checkoutSummary['shipping_cost'] as num?)?.toDouble() ?? 0.0;
   double get _tax => (widget.checkoutSummary['tax'] as num?)?.toDouble() ?? 0.0;
-  double get _discount => (widget.checkoutSummary['discount'] as num?)?.toDouble() ?? 0.0;
-  double get _total => (widget.checkoutSummary['total'] as num?)?.toDouble() ?? 0.0;
+  double get _discount =>
+      (widget.checkoutSummary['discount'] as num?)?.toDouble() ?? 0.0;
+  double get _total =>
+      (widget.checkoutSummary['total'] as num?)?.toDouble() ?? 0.0;
+
+  String get _paymentFlow {
+    final configuredFlow = widget.selectedPaymentMethod['mobile_flow'];
+    if (configuredFlow is String && configuredFlow.isNotEmpty) {
+      return configuredFlow;
+    }
+    return switch ((widget.selectedPaymentMethod['code'] ?? '').toString()) {
+      'cod' => 'cash_on_delivery',
+      'bank_transfer' => 'manual_transfer',
+      'razorpay' => 'razorpay',
+      'stripe' => 'stripe',
+      'paypal' => 'paypal',
+      'phonepe' => 'phonepe',
+      _ => 'unsupported',
+    };
+  }
+
+  bool get _isManualTransfer => _paymentFlow == 'manual_transfer';
+
+  List<Map<String, dynamic>> get _manualDestinations {
+    final config = widget.selectedPaymentMethod['manual_payment'];
+    if (config is! Map) return const [];
+    final rawDestinations = config['destinations'];
+    if (rawDestinations is! List) return const [];
+    return rawDestinations.whereType<Map<String, dynamic>>().toList();
+  }
 
   @override
   void dispose() {
     _notesController.dispose();
+    _transferReferenceController.dispose();
     _razorpayService.dispose();
     _stripeService.dispose();
     super.dispose();
@@ -107,51 +152,73 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
     try {
       // Extract required data
-      
+
       final shippingAddressId = widget.selectedAddress['id'] as int?;
       final paymentMethodCode = widget.selectedPaymentMethod['code'] as String?;
       final notes = _notesController.text.trim();
-      
+
       if (shippingAddressId == null) {
         throw Exception('Shipping address is required');
       }
       if (paymentMethodCode == null) {
         throw Exception('Payment method is required');
       }
-      
-      // Check if Razorpay payment
-      if (paymentMethodCode.toLowerCase() == 'razorpay') {
+
+      if (widget.selectedPaymentMethod['mobile_supported'] == false ||
+          _paymentFlow == 'unsupported') {
+        throw Exception(
+          widget.selectedPaymentMethod['mobile_support_reason']?.toString() ??
+              'This payment method is not supported in the mobile app yet.',
+        );
+      }
+
+      final orderNotes = notes.isNotEmpty ? notes : null;
+      if (_paymentFlow == 'razorpay') {
         await _processRazorpayPayment(
           shippingAddressId: shippingAddressId,
           billingAddressId: widget.billingAddressId,
-          notes: notes.isNotEmpty ? notes : null,
+          shippingMethodCode: widget.selectedShippingMethod['code']?.toString(),
+          notes: orderNotes,
         );
-      } else if (paymentMethodCode.toLowerCase() == 'stripe') {
+      } else if (_paymentFlow == 'stripe') {
         await _processStripePayment(
           shippingAddressId: shippingAddressId,
           billingAddressId: widget.billingAddressId,
-          notes: notes.isNotEmpty ? notes : null,
+          shippingMethodCode: widget.selectedShippingMethod['code']?.toString(),
+          notes: orderNotes,
         );
-      } else if (paymentMethodCode.toLowerCase() == 'paypal') {
+      } else if (_paymentFlow == 'paypal') {
         await _processPayPalPayment(
           shippingAddressId: shippingAddressId,
           billingAddressId: widget.billingAddressId,
-          notes: notes.isNotEmpty ? notes : null,
+          shippingMethodCode: widget.selectedShippingMethod['code']?.toString(),
+          notes: orderNotes,
         );
-      } else if (paymentMethodCode.toLowerCase() == 'phonepe') {
+      } else if (_paymentFlow == 'phonepe') {
         await _processPhonePePayment(
           shippingAddressId: shippingAddressId,
           billingAddressId: widget.billingAddressId,
-          notes: notes.isNotEmpty ? notes : null,
+          shippingMethodCode: widget.selectedShippingMethod['code']?.toString(),
+          notes: orderNotes,
         );
-      } else {
-        // COD, Bank Transfer, etc.
+      } else if (_paymentFlow == 'manual_transfer') {
+        await _placeManualTransferOrder(
+          shippingAddressId: shippingAddressId,
+          billingAddressId: widget.billingAddressId,
+          shippingMethodCode: widget.selectedShippingMethod['code']?.toString(),
+          paymentMethod: paymentMethodCode,
+          notes: orderNotes,
+        );
+      } else if (_paymentFlow == 'cash_on_delivery') {
         await _placeOrderDirect(
           shippingAddressId: shippingAddressId,
           billingAddressId: widget.billingAddressId,
+          shippingMethodCode: widget.selectedShippingMethod['code']?.toString(),
           paymentMethod: paymentMethodCode,
-          notes: notes.isNotEmpty ? notes : null,
+          notes: orderNotes,
         );
+      } else {
+        throw Exception('Unsupported mobile payment flow: $_paymentFlow');
       }
     } catch (e) {
       if (mounted) {
@@ -171,12 +238,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
   Future<void> _processRazorpayPayment({
     required int shippingAddressId,
     int? billingAddressId,
+    String? shippingMethodCode,
     String? notes,
   }) async {
     try {
       // Step 1: get gateway config for UI branding (name, theme)
-      final paymentMethodData = await _checkoutService.setPaymentMethod('razorpay');
-      final gatewayConfig = paymentMethodData['gateway_config'] as Map<String, dynamic>?;
+      final paymentMethodData =
+          await _checkoutService.setPaymentMethod('razorpay');
+      final gatewayConfig =
+          paymentMethodData['gateway_config'] as Map<String, dynamic>?;
       final businessName = gatewayConfig?['name'] as String? ??
           MobileAppSettingsScope.of(context).settings.appName;
       final themeColor = gatewayConfig?['theme_color'] as String? ?? '#3399cc';
@@ -185,12 +255,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
       final orderResult = await _checkoutService.placeOrder(
         shippingAddressId: shippingAddressId,
         billingAddressId: billingAddressId,
+        shippingMethodCode: shippingMethodCode,
         paymentMethod: 'razorpay',
         notes: notes,
       );
 
-      final internalOrderId =
-          (orderResult['order_id'] as num?)?.toInt() ??
+      final internalOrderId = (orderResult['order_id'] as num?)?.toInt() ??
           (orderResult['id'] as num?)?.toInt();
       final orderNumber = orderResult['order_number'] as String? ??
           '#VX-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
@@ -202,7 +272,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
         throw Exception('Order creation failed — no order ID returned');
       }
       if (razorpayOrderId == null || razorpayOrderId.isEmpty) {
-        throw Exception('Razorpay order not created. Check Razorpay gateway configuration.');
+        throw Exception(
+            'Razorpay order not created. Check Razorpay gateway configuration.');
       }
       if (razorpayKey == null || razorpayKey.isEmpty) {
         throw Exception('Razorpay key not found');
@@ -255,7 +326,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(_razorpayService.getErrorMessage(response.code ?? 0)),
+              content:
+                  Text(_razorpayService.getErrorMessage(response.code ?? 0)),
               backgroundColor: Colors.red,
             ),
           );
@@ -308,46 +380,54 @@ class _ReviewScreenState extends State<ReviewScreen> {
   Future<void> _processStripePayment({
     required int shippingAddressId,
     int? billingAddressId,
+    String? shippingMethodCode,
     String? notes,
   }) async {
     try {
       // First, set the payment method to get gateway configuration
-      final paymentMethodData = await _checkoutService.setPaymentMethod('stripe');
-      
-      final gatewayConfig = paymentMethodData['gateway_config'] as Map<String, dynamic>?;
-      
+      final paymentMethodData = await _checkoutService.setPaymentMethod(
+        'stripe',
+        shippingAddressId: shippingAddressId,
+        shippingMethodCode: shippingMethodCode,
+      );
+
+      final gatewayConfig =
+          paymentMethodData['gateway_config'] as Map<String, dynamic>?;
+
       if (gatewayConfig == null) {
         throw Exception('Gateway configuration not available for Stripe');
       }
-      
+
       // Try multiple possible key names for publishable key
-      final publishableKey = gatewayConfig['publishable_key'] as String? ?? 
-                            gatewayConfig['key'] as String? ?? 
-                            gatewayConfig['stripe_key'] as String? ??
-                            gatewayConfig['public_key'] as String?;
-      
+      final publishableKey = gatewayConfig['publishable_key'] as String? ??
+          gatewayConfig['key'] as String? ??
+          gatewayConfig['stripe_key'] as String? ??
+          gatewayConfig['public_key'] as String?;
+
       // Try multiple possible key names for client secret
-      final clientSecret = gatewayConfig['client_secret'] as String? ?? 
-                          gatewayConfig['payment_intent_client_secret'] as String?;
-      
+      final clientSecret = gatewayConfig['client_secret'] as String? ??
+          gatewayConfig['payment_intent_client_secret'] as String?;
+
       final merchantName = gatewayConfig['name'] as String? ??
           gatewayConfig['merchant_name'] as String? ??
           MobileAppSettingsScope.of(context).settings.appName;
-      
+
       if (publishableKey == null || publishableKey.isEmpty) {
-        throw Exception('Stripe publishable key not found in gateway configuration. Available keys: ${gatewayConfig.keys.join(", ")}');
+        throw Exception(
+            'Stripe publishable key not found in gateway configuration. Available keys: ${gatewayConfig.keys.join(", ")}');
       }
-      
+
       if (clientSecret == null || clientSecret.isEmpty) {
-        throw Exception('Payment intent client secret not found. Backend must create a Payment Intent and return the client_secret.');
+        throw Exception(
+            'Payment intent client secret not found. Backend must create a Payment Intent and return the client_secret.');
       }
-      
+
       // Initialize Stripe with publishable key
       await _stripeService.initialize(publishableKey);
-      
+
       // Small delay to ensure Stripe SDK is fully initialized
       await Future.delayed(const Duration(milliseconds: 300));
-      
+
       // Setup Stripe callbacks
       _stripeService.onSuccess = (String paymentIntentId) async {
         try {
@@ -355,13 +435,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
           final result = await _checkoutService.placeOrder(
             shippingAddressId: shippingAddressId,
             billingAddressId: billingAddressId,
+            shippingMethodCode: shippingMethodCode,
             paymentMethod: 'stripe',
             notes: notes,
             paymentId: paymentIntentId,
           );
 
-          final internalOrderId =
-              (result['order_id'] as num?)?.toInt() ??
+          final internalOrderId = (result['order_id'] as num?)?.toInt() ??
               (result['id'] as num?)?.toInt();
           final orderNumber = result['order_number'] ??
               '#VX-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
@@ -438,19 +518,22 @@ class _ReviewScreenState extends State<ReviewScreen> {
       // Get billing address from checkout summary
       final billingAddressData =
           widget.billingAddress ?? widget.checkoutSummary['billing_address'];
-      
+
       // Determine which address to use for billing
       Map<String, dynamic> addressToUse;
-      
+
       if (billingAddressData is Map<String, dynamic>) {
         // Check if it's a flag indicating to use shipping address
-        final useShippingAddress = billingAddressData['use_shipping_address'] == true;
-        
+        final useShippingAddress =
+            billingAddressData['use_shipping_address'] == true;
+
         // Check if billing address has street address (try both field name formats)
-        final hasAddress = (billingAddressData['address1']?.toString() ?? 
-                           billingAddressData['address_line1']?.toString() ?? 
-                           billingAddressData['address_line_1']?.toString() ?? '').isNotEmpty;
-        
+        final hasAddress = (billingAddressData['address1']?.toString() ??
+                billingAddressData['address_line1']?.toString() ??
+                billingAddressData['address_line_1']?.toString() ??
+                '')
+            .isNotEmpty;
+
         if (useShippingAddress || !hasAddress) {
           // Backend says to use shipping address OR billing address is incomplete
           addressToUse = widget.selectedAddress;
@@ -462,39 +545,44 @@ class _ReviewScreenState extends State<ReviewScreen> {
         // No billing address in summary, use shipping address
         addressToUse = widget.selectedAddress;
       }
-      
+
       // Map the address fields - API uses different field names (address1, address_line1, or address_line_1)
-      final customerEmail = addressToUse['email']?.toString() ?? widget.selectedAddress['email']?.toString();
-      final customerName = (addressToUse['full_name']?.toString() ?? 
-                           '${addressToUse['first_name'] ?? ''} ${addressToUse['last_name'] ?? ''}'.trim());
+      final customerEmail = addressToUse['email']?.toString() ??
+          widget.selectedAddress['email']?.toString();
+      final customerName = (addressToUse['full_name']?.toString() ??
+          '${addressToUse['first_name'] ?? ''} ${addressToUse['last_name'] ?? ''}'
+              .trim());
       final customerPhone = addressToUse['phone']?.toString();
-      final addressLine1 = addressToUse['address1']?.toString() ?? 
-                          addressToUse['address_line1']?.toString() ?? 
-                          addressToUse['address_line_1']?.toString();
-      final addressLine2 = addressToUse['address2']?.toString() ?? 
-                          addressToUse['address_line2']?.toString() ?? 
-                          addressToUse['address_line_2']?.toString();
+      final addressLine1 = addressToUse['address1']?.toString() ??
+          addressToUse['address_line1']?.toString() ??
+          addressToUse['address_line_1']?.toString();
+      final addressLine2 = addressToUse['address2']?.toString() ??
+          addressToUse['address_line2']?.toString() ??
+          addressToUse['address_line_2']?.toString();
       final city = addressToUse['city']?.toString();
       final state = addressToUse['state']?.toString();
-      final postalCode = addressToUse['zip_code']?.toString() ?? 
-                        addressToUse['postal_code']?.toString() ?? 
-                        addressToUse['zipcode']?.toString();
+      final postalCode = addressToUse['zip_code']?.toString() ??
+          addressToUse['postal_code']?.toString() ??
+          addressToUse['zipcode']?.toString();
       final country = addressToUse['country']?.toString() ?? 'IN';
-      
+
       // Validate required fields for Indian regulations
       if (customerName.isEmpty) {
-        throw Exception('Customer name is required. Please update your address.');
+        throw Exception(
+            'Customer name is required. Please update your address.');
       }
       if (addressLine1 == null || addressLine1.isEmpty) {
-        throw Exception('Street address is required. Please update your address with complete street address.');
+        throw Exception(
+            'Street address is required. Please update your address with complete street address.');
       }
       if (city == null || city.isEmpty) {
         throw Exception('City is required. Please update your address.');
       }
       if (postalCode == null || postalCode.isEmpty) {
-        throw Exception('Postal/ZIP code is required. Please update your address with postal code.');
+        throw Exception(
+            'Postal/ZIP code is required. Please update your address with postal code.');
       }
-      
+
       await _stripeService.presentPaymentSheet(
         clientSecret: clientSecret,
         merchantDisplayName: merchantName,
@@ -526,15 +614,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
   Future<void> _processPhonePePayment({
     required int shippingAddressId,
     int? billingAddressId,
+    String? shippingMethodCode,
     String? notes,
   }) async {
     try {
-      // 1. Set payment method on the session — also returns environment.
+      // 1. Request PhonePe's configured environment for the mobile SDK.
       final paymentMethodData =
           await _checkoutService.setPaymentMethod('phonepe');
       final gatewayConfig =
           paymentMethodData['gateway_config'] as Map<String, dynamic>?;
-      final envString      = (gatewayConfig?['environment'] as String?)?.toUpperCase() ?? 'UAT';
+      final envString =
+          (gatewayConfig?['environment'] as String?)?.toUpperCase() ?? 'UAT';
       final sdkEnvironment = (envString == 'PRODUCTION')
           ? PhonePeEnvironment.production
           : PhonePeEnvironment.sandbox;
@@ -544,21 +634,20 @@ class _ReviewScreenState extends State<ReviewScreen> {
       final orderResult = await _checkoutService.placeOrder(
         shippingAddressId: shippingAddressId,
         billingAddressId: billingAddressId,
+        shippingMethodCode: shippingMethodCode,
         paymentMethod: 'phonepe',
         notes: notes,
       );
 
-      final internalOrderId =
-          (orderResult['id'] as num?)?.toInt() ??
+      final internalOrderId = (orderResult['id'] as num?)?.toInt() ??
           (orderResult['order_id'] as num?)?.toInt();
 
-      final merchantId     = (orderResult['merchant_id']      as String?) ?? '';
-      final orderToken     = (orderResult['phonepe_token']    as String?) ?? '';
+      final merchantId = (orderResult['merchant_id'] as String?) ?? '';
+      final orderToken = (orderResult['phonepe_token'] as String?) ?? '';
       final phonePeOrderId = (orderResult['phonepe_order_id'] as String?) ?? '';
 
       if (merchantId.isEmpty || orderToken.isEmpty || phonePeOrderId.isEmpty) {
-        throw Exception(
-            'PhonePe credentials missing from placeOrder response. '
+        throw Exception('PhonePe credentials missing from placeOrder response. '
             'Please ensure PhonePe is configured in the admin panel.');
       }
 
@@ -590,7 +679,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
       }
 
       if (!phonePeResult.isSuccess) {
-        throw Exception(phonePeResult.errorMessage ?? 'PhonePe payment failed.');
+        throw Exception(
+            phonePeResult.errorMessage ?? 'PhonePe payment failed.');
       }
 
       // 5. Verify payment server-side with the internal order_id.
@@ -646,6 +736,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
   Future<void> _processPayPalPayment({
     required int shippingAddressId,
     int? billingAddressId,
+    String? shippingMethodCode,
     String? notes,
   }) async {
     try {
@@ -654,20 +745,19 @@ class _ReviewScreenState extends State<ReviewScreen> {
       final orderResult = await _checkoutService.placeOrder(
         shippingAddressId: shippingAddressId,
         billingAddressId: billingAddressId,
+        shippingMethodCode: shippingMethodCode,
         paymentMethod: 'paypal',
         notes: notes,
       );
 
-      final internalOrderId =
-          (orderResult['order_id'] as num?)?.toInt() ??
+      final internalOrderId = (orderResult['order_id'] as num?)?.toInt() ??
           (orderResult['id'] as num?)?.toInt();
 
       final paypalOrderId = orderResult['paypal_order_id'] as String?;
-      final approveUrl    = orderResult['approve_url']    as String?;
+      final approveUrl = orderResult['approve_url'] as String?;
 
       if (paypalOrderId == null || approveUrl == null) {
-        throw Exception(
-            'PayPal order details missing from server response. '
+        throw Exception('PayPal order details missing from server response. '
             'Please ensure PayPal is configured in the admin panel.');
       }
 
@@ -743,25 +833,92 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
   }
 
+  Future<void> _placeManualTransferOrder({
+    required int shippingAddressId,
+    int? billingAddressId,
+    String? shippingMethodCode,
+    required String paymentMethod,
+    String? notes,
+  }) async {
+    if (_manualDestinations.isEmpty) {
+      throw Exception('No active manual transfer account is configured.');
+    }
+    if (_selectedManualDestinationId == null) {
+      throw Exception('Select a bank or mobile-wallet account.');
+    }
+    if (_manualPaymentProof == null) {
+      throw Exception('Choose a receipt image before submitting the order.');
+    }
+
+    // Keep the order response so a failed upload can be retried without
+    // creating a second order from this screen.
+    _createdManualOrder ??= await () async {
+      await _checkoutService.setPaymentMethod(paymentMethod);
+      return _checkoutService.placeOrder(
+        shippingAddressId: shippingAddressId,
+        billingAddressId: billingAddressId,
+        shippingMethodCode: shippingMethodCode,
+        paymentMethod: paymentMethod,
+        notes: notes,
+      );
+    }();
+
+    final orderId = (_createdManualOrder!['order_id'] as num?)?.toInt() ??
+        (_createdManualOrder!['id'] as num?)?.toInt();
+    if (orderId == null) {
+      throw Exception('Order was created but no order ID was returned.');
+    }
+
+    await _checkoutService.submitManualPayment(
+      orderId: orderId,
+      destinationId: _selectedManualDestinationId!,
+      proof: _manualPaymentProof!,
+      transferReference: _transferReferenceController.text,
+    );
+
+    try {
+      await _cartService.clearCart();
+    } catch (_) {}
+
+    if (mounted) {
+      Navigator.pushNamed(
+        context,
+        '/order-success',
+        arguments: {
+          'orderNumber':
+              _createdManualOrder!['order_number'] ?? 'Order $orderId',
+          'totalAmount': _total,
+          'estimatedDelivery': 'Pending payment review',
+          'paymentPending': true,
+          'paymentStatusMessage':
+              'Your transfer receipt was submitted. Staff will verify the transfer before confirming payment.',
+        },
+      );
+    }
+  }
+
   Future<void> _placeOrderDirect({
     required int shippingAddressId,
     int? billingAddressId,
+    String? shippingMethodCode,
     required String paymentMethod,
     String? notes,
   }) async {
     try {
-      // Set the payment method on the checkout session first (required by backend)
+      // Validate the configured method before creating the order.
       await _checkoutService.setPaymentMethod(paymentMethod);
 
       // Place the order via API
       final result = await _checkoutService.placeOrder(
         shippingAddressId: shippingAddressId,
         billingAddressId: billingAddressId,
+        shippingMethodCode: shippingMethodCode,
         paymentMethod: paymentMethod,
         notes: notes,
       );
-      
-      final orderNumber = result['order_number'] ?? '#VX-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+
+      final orderNumber = result['order_number'] ??
+          '#VX-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
 
       // Backend already clears cart items in placeOrder; treat clear as best-effort
       // so a post-order cart call cannot block success navigation.
@@ -778,6 +935,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
             'orderNumber': orderNumber,
             'totalAmount': _total,
             'estimatedDelivery': 'Mon, Aug 24',
+            'paymentPending': paymentMethod == 'cod',
+            'paymentStatusMessage': paymentMethod == 'cod'
+                ? 'Payment is due when your order is delivered.'
+                : null,
           },
         );
       }
@@ -842,6 +1003,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       _buildCartItemsSection(isDark),
                       const SizedBox(height: 24),
                       _buildShippingPaymentSection(isDark),
+                      if (_isManualTransfer) ...[
+                        const SizedBox(height: 16),
+                        _buildManualTransferSection(isDark),
+                      ],
                       const SizedBox(height: 24),
                       _buildOrderNotesSection(isDark),
                       const SizedBox(height: 24),
@@ -983,8 +1148,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final titleColor = isDark ? AppColors.darkText : const Color(0xFF0F172A);
     final mutedColor =
         isDark ? AppColors.darkTextSecondary : Colors.grey.shade600;
-    final chipBg =
-        isDark ? const Color(0xFF334155) : const Color(0xFFF1F1F1);
+    final chipBg = isDark ? const Color(0xFF334155) : const Color(0xFFF1F1F1);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1087,8 +1251,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final titleColor = isDark ? AppColors.darkText : const Color(0xFF0F172A);
     final mutedColor =
         isDark ? AppColors.darkTextSecondary : Colors.grey.shade600;
-    final chipBg =
-        isDark ? const Color(0xFF334155) : const Color(0xFFF1F1F1);
+    final chipBg = isDark ? const Color(0xFF334155) : const Color(0xFFF1F1F1);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1176,10 +1339,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 ),
               ),
               StyledPriceText(
-                amount:
-                    (widget.checkoutSummary['shipping_cost'] as num?)
-                            ?.toDouble() ??
-                        0.0,
+                amount: (widget.checkoutSummary['shipping_cost'] as num?)
+                        ?.toDouble() ??
+                    0.0,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: titleColor,
@@ -1234,6 +1396,135 @@ class _ReviewScreenState extends State<ReviewScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildManualTransferSection(bool isDark) {
+    final destinations = _manualDestinations;
+    final instructions =
+        widget.selectedPaymentMethod['instructions']?.toString() ?? '';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppColors.darkDivider : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Manual transfer details',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            instructions.isEmpty
+                ? 'Transfer the exact order total to one of the accounts below, then submit a receipt. Payment remains pending until staff verify it.'
+                : '$instructions Payment remains pending until staff verify your receipt.',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.45,
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (destinations.isEmpty)
+            const Text(
+              'No active transfer account is configured. Choose another payment method.',
+              style: TextStyle(color: Colors.red),
+            )
+          else
+            ...destinations.map((destination) {
+              final id = destination['id']?.toString() ?? '';
+              return RadioListTile<String>(
+                contentPadding: EdgeInsets.zero,
+                value: id,
+                groupValue: _selectedManualDestinationId,
+                onChanged: (value) => setState(() {
+                  _selectedManualDestinationId = value;
+                }),
+                title: Text(
+                  destination['label']?.toString() ??
+                      destination['provider']?.toString() ??
+                      'Transfer account',
+                ),
+                subtitle: Text(
+                  '${destination['provider'] ?? ''}\n'
+                  'Account name: ${destination['account_name'] ?? '—'}\n'
+                  'Account number: ${destination['account_number'] ?? '—'}'
+                  '${(destination['instructions']?.toString().isNotEmpty ?? false) ? '\n${destination['instructions']}' : ''}',
+                ),
+              );
+            }),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _transferReferenceController,
+            maxLength: 150,
+            decoration: const InputDecoration(
+              labelText: 'Transfer reference (optional)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _isPlacingOrder || _createdManualOrder != null
+                ? null
+                : _pickManualPaymentProof,
+            icon: const Icon(Icons.upload_file),
+            label: Text(_createdManualOrder != null
+                ? 'Receipt attached to this order'
+                : _manualPaymentProof == null
+                    ? 'Choose receipt image'
+                    : 'Change receipt image'),
+          ),
+          if (_manualPaymentProof != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Selected: ${_manualPaymentProof!.path.split(Platform.pathSeparator).last}',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+              ),
+            ),
+          ],
+          const SizedBox(height: 4),
+          Text(
+            'Accepted: JPG, PNG or WebP, up to 5 MB. A receipt is not payment confirmation.',
+            style: TextStyle(
+              fontSize: 11,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickManualPaymentProof() async {
+    final image = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 2048,
+      maxHeight: 2048,
+    );
+    if (image == null || !mounted) return;
+
+    final file = File(image.path);
+    if (await file.length() > 5 * 1024 * 1024) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Receipt image must be 5 MB or smaller.')),
+      );
+      return;
+    }
+    if (mounted) setState(() => _manualPaymentProof = file);
   }
 
   Widget _buildInfoCard({
@@ -1349,9 +1640,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
             decoration: InputDecoration(
               hintText: 'Add a note to your order (optional)',
               hintStyle: TextStyle(
-                color: isDark
-                    ? AppColors.darkTextSecondary
-                    : Colors.grey[400],
+                color: isDark ? AppColors.darkTextSecondary : Colors.grey[400],
                 fontSize: 14,
               ),
               border: InputBorder.none,
@@ -1488,9 +1777,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           border: Border(
             top: BorderSide(
-              color: isDark
-                  ? AppColors.darkDivider
-                  : const Color(0xFFE2E8F0),
+              color: isDark ? AppColors.darkDivider : const Color(0xFFE2E8F0),
             ),
           ),
           boxShadow: [
@@ -1533,9 +1820,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Place Order',
-                            style: TextStyle(
+                          Text(
+                            _isManualTransfer
+                                ? (_createdManualOrder == null
+                                    ? 'Submit Transfer Proof'
+                                    : 'Retry Proof Upload')
+                                : 'Place Order',
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
