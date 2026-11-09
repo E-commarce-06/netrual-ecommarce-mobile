@@ -1,45 +1,13 @@
-import 'dart:io';
-import 'dart:ui';
-
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cartxis_app/app.dart';
-import 'package:cartxis_app/core/config/api_config.dart';
+import 'package:cartxis_app/core/config/deployment_config.dart';
 import 'package:cartxis_app/core/theme/theme_controller.dart';
-import 'package:cartxis_app/core/utils/crashlytics_filters.dart';
 import 'package:cartxis_app/core/utils/currency_utils.dart';
-import 'package:cartxis_app/firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  // Forward Flutter framework + async errors to Crashlytics.
-  // Image 404s and layout overflows (RenderFlex) are non-fatal — UI
-  // degradations, not process crashes.
-  FlutterError.onError = (details) {
-    if (isNonFatalFlutterError(details.exception)) {
-      FlutterError.presentError(details);
-      FirebaseCrashlytics.instance.recordFlutterError(details);
-      return;
-    }
-    FirebaseCrashlytics.instance.recordFlutterFatalError(details);
-  };
-  PlatformDispatcher.instance.onError = (error, stack) {
-    final fatal = !isNonFatalFlutterError(error);
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: fatal);
-    return true;
-  };
-
-  // Allow self-signed certificates in development mode
-  if (!ApiConfig.isProduction) {
-    HttpOverrides.global = _DevHttpOverrides();
-  }
+  DeploymentConfig.validate();
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -50,14 +18,4 @@ Future<void> main() async {
   CurrencyUtils.preload();
 
   runApp(const CartxisApp());
-}
-
-/// HTTP Overrides for development to accept self-signed certificates
-class _DevHttpOverrides extends HttpOverrides {
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    return super.createHttpClient(context)
-      ..badCertificateCallback =
-          (X509Certificate cert, String host, int port) => true;
-  }
 }

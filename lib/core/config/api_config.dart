@@ -1,49 +1,29 @@
-import 'dart:io';
+import 'deployment_config.dart';
 
-/// API Configuration
+/// API paths and transport settings for the selected deployment profile.
 class ApiConfig {
   ApiConfig._();
 
-  // Environment Configuration
-  // Store / production builds must use true (demo.cartxis.com).
-  // Set false for local cartxis.test / Android emulator 10.0.2.2.
-  static const bool isProduction = true;
+  static const bool isProduction = DeploymentConfig.isReleaseBuild;
+  static const String apiVersion = DeploymentConfig.apiVersion;
 
-  // Base URLs
-  // iOS simulator: resolved via /etc/hosts on Mac → cartxis.test
-  // Android emulator: 10.0.2.2 = host machine loopback; nginx vhost selected via Host header
-  static const String _iosBaseUrl     = 'https://cartxis.test';
-  static const String _androidBaseUrl = 'https://10.0.2.2'; // No path prefix — Host header routes to vhost root
-  static const String productionBaseUrl = 'https://demo.cartxis.com';
-
-  // Sent as Host header on Android dev so nginx routes to the cartxis.test vhost
-  static const String devDomain = 'cartxis.test';
-
-  static String get testBaseUrl =>
-      Platform.isAndroid ? _androidBaseUrl : _iosBaseUrl;
-
-  // Current Base URL based on environment
-  static String get baseUrl => isProduction ? productionBaseUrl : testBaseUrl;
-
-  // API Version
-  static const String apiVersion = 'v1';
-
-  // API Endpoints
+  // Authentication Endpoints
   static const String authLogin = '/api/$apiVersion/auth/login';
   static const String authRegister = '/api/$apiVersion/auth/register';
   static const String authLogout = '/api/$apiVersion/auth/logout';
   static const String authMe = '/api/$apiVersion/auth/me';
   static const String authForgotPassword =
-      '/api/$apiVersion/auth/forgot-password';
+      '/api/$apiVersion/auth/password/forgot';
   static const String authResetPassword =
-      '/api/$apiVersion/auth/reset-password';
+      '/api/$apiVersion/auth/password/reset';
   static const String authVerifyEmail = '/api/$apiVersion/auth/verify-email';
   static const String authDeleteAccount = '/api/$apiVersion/auth/account';
 
   // Customer Endpoints
   static const String customerProfile = '/api/$apiVersion/customer/profile';
   static const String customerOrders = '/api/$apiVersion/customer/orders';
-  static String customerOrderDetail(int orderId) => '/api/$apiVersion/customer/orders/$orderId';
+  static String customerOrderDetail(int orderId) =>
+      '/api/$apiVersion/customer/orders/$orderId';
   static const String wishlist = '/api/$apiVersion/customer/wishlist';
   static const String wishlistAdd = '/api/$apiVersion/customer/wishlist/add';
 
@@ -51,7 +31,8 @@ class ApiConfig {
   static const String currencyDefault = '/api/$apiVersion/currency/default';
 
   // System Sync Endpoints
-  static const String apiSyncHeartbeat = '/api/$apiVersion/system/api-sync/heartbeat';
+  static const String apiSyncHeartbeat =
+      '/api/$apiVersion/system/api-sync/heartbeat';
   static const String apiSyncStatus = '/api/$apiVersion/system/api-sync/status';
 
   // Product Endpoints
@@ -67,18 +48,29 @@ class ApiConfig {
   // Banner Endpoints
   static const String banners = '/api/$apiVersion/banners';
 
-  // App Settings Endpoints
+  // Public store configuration; never changes the trusted API origin.
   static const String appSettings = '/api/$apiVersion/app/settings';
 
-  // Timeout Settings
   static const Duration connectionTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 30);
+  static const String deviceName = 'Flutter App';
 
-  // Device Information
-  static const String deviceName = 'Flutter App'; // Can be updated dynamically
+  static String get baseUrl => DeploymentConfig.apiOrigin.toString();
 
-  // Full URL Helper
+  /// Builds a URL only from a relative API path; absolute/external endpoints
+  /// are rejected so services cannot accidentally bypass the configured host.
   static String getFullUrl(String endpoint) {
-    return '$baseUrl$endpoint';
+    final parsed = Uri.tryParse(endpoint);
+    if (endpoint.isEmpty ||
+        !endpoint.startsWith('/') ||
+        endpoint.startsWith('//') ||
+        parsed == null ||
+        parsed.hasScheme ||
+        parsed.hasAuthority ||
+        parsed.hasFragment) {
+      throw ArgumentError.value(endpoint, 'endpoint', 'Expected a relative API path.');
+    }
+
+    return DeploymentConfig.apiOrigin.resolve(endpoint).toString();
   }
 }

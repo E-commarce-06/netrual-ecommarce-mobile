@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import 'api_exception.dart';
@@ -12,16 +11,8 @@ class ApiClient {
 
   ApiClient({http.Client? client}) : _client = client ?? _createClient();
 
-  /// Create HTTP client with certificate handling for development
-  static http.Client _createClient() {
-    // In test mode, allow self-signed certificates
-    if (!ApiConfig.isProduction) {
-      final ioClient = HttpClient()
-        ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
-      return IOClient(ioClient);
-    }
-    return http.Client();
-  }
+  /// Uses the platform's normal certificate validation in every build mode.
+  static http.Client _createClient() => http.Client();
 
   /// GET Request
   Future<Map<String, dynamic>> get(
@@ -35,12 +26,14 @@ class ApiClient {
 
 
 
-      final response = await _client
-          .get(
-            uri,
-            headers: await _buildHeaders(headers),
-          )
+      final request = http.Request('GET', uri)
+        ..headers.addAll(await _buildHeaders(headers))
+        ..followRedirects = false;
+      final streamedResponse = await _client
+          .send(request)
           .timeout(ApiConfig.connectionTimeout);
+      final response = await http.Response.fromStream(streamedResponse)
+          .timeout(ApiConfig.receiveTimeout);
 
       return _handleResponse(response);
     } on SocketException {
@@ -72,12 +65,14 @@ class ApiClient {
     try {
       final uri = Uri.parse(ApiConfig.getFullUrl(endpoint));
 
-      final response = await _client
-          .post(
-            uri,
-            headers: await _buildHeaders(headers),
-            body: body != null ? jsonEncode(body) : null,
-          )
+      final request = http.Request('POST', uri)
+        ..headers.addAll(await _buildHeaders(headers))
+        ..followRedirects = false;
+      if (body != null) request.body = jsonEncode(body);
+      final streamedResponse = await _client
+          .send(request)
+          .timeout(ApiConfig.connectionTimeout);
+      final response = await http.Response.fromStream(streamedResponse)
           .timeout(ApiConfig.receiveTimeout);
 
       return _handleResponse(response);
@@ -110,12 +105,14 @@ class ApiClient {
     try {
       final uri = Uri.parse(ApiConfig.getFullUrl(endpoint));
 
-      final response = await _client
-          .put(
-            uri,
-            headers: await _buildHeaders(headers),
-            body: body != null ? jsonEncode(body) : null,
-          )
+      final request = http.Request('PUT', uri)
+        ..headers.addAll(await _buildHeaders(headers))
+        ..followRedirects = false;
+      if (body != null) request.body = jsonEncode(body);
+      final streamedResponse = await _client
+          .send(request)
+          .timeout(ApiConfig.connectionTimeout);
+      final response = await http.Response.fromStream(streamedResponse)
           .timeout(ApiConfig.receiveTimeout);
 
       return _handleResponse(response);
@@ -177,12 +174,14 @@ class ApiClient {
       }
 
       // Send request
+      request.followRedirects = false;
       final streamedResponse = await _client
           .send(request)
-          .timeout(ApiConfig.receiveTimeout);
+          .timeout(ApiConfig.connectionTimeout);
 
-      // Get response
-      final response = await http.Response.fromStream(streamedResponse);
+      // Get response without following a server-provided redirect.
+      final response = await http.Response.fromStream(streamedResponse)
+          .timeout(ApiConfig.receiveTimeout);
 
       return _handleResponse(response);
     } on SocketException {
@@ -215,14 +214,18 @@ class ApiClient {
       final uri = Uri.parse(ApiConfig.getFullUrl(endpoint));
 
       final request = http.Request('DELETE', uri);
+      request.followRedirects = false;
       request.headers.addAll(await _buildHeaders(headers));
       if (body != null) {
         request.headers['Content-Type'] = 'application/json';
         request.body = jsonEncode(body);
       }
 
-      final streamed = await _client.send(request).timeout(ApiConfig.receiveTimeout);
-      final response = await http.Response.fromStream(streamed);
+      final streamed = await _client
+          .send(request)
+          .timeout(ApiConfig.connectionTimeout);
+      final response = await http.Response.fromStream(streamed)
+          .timeout(ApiConfig.receiveTimeout);
 
       return _handleResponse(response);
     } on SocketException {
@@ -250,9 +253,6 @@ class ApiClient {
     final defaultHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      // Android emulator hits 10.0.2.2; send Host header so nginx routes to the correct vhost
-      if (!ApiConfig.isProduction && Platform.isAndroid)
-        'Host': ApiConfig.devDomain,
     };
 
     // Add authentication token if available

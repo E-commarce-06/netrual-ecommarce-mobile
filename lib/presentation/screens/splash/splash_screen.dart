@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cartxis_app/core/config/mobile_app_settings_controller.dart';
 import 'package:cartxis_app/core/constants/app_colors.dart';
 import 'package:cartxis_app/core/constants/app_strings.dart';
 import 'package:cartxis_app/data/services/auth_service.dart';
@@ -70,6 +71,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final appSettings = MobileAppSettingsScope.of(context).settings;
     final bottom = MediaQuery.paddingOf(context).bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final canvas = isDark ? AppColors.backgroundDark : AppColors.backgroundLight;
@@ -146,13 +148,17 @@ class _SplashScreenState extends State<SplashScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const AuthLogo(
+                        AuthLogo(
+                          networkUrl: appSettings.authLogoUrl,
+                          fallbackLabel: appSettings.appName,
                           width: 248,
                           height: 96,
                         ),
                         const SizedBox(height: 20),
                         Text(
-                          'Commerce, simplified',
+                          appSettings.tagline.isNotEmpty
+                              ? appSettings.tagline
+                              : 'Shop with confidence',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14,

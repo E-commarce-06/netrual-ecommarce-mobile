@@ -14,7 +14,7 @@ import 'package:cartxis_app/app.dart';
 void main() {
   testWidgets('App builds', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({'isLoggedIn': false});
-    await tester.pumpWidget(const VortexApp());
+    await tester.pumpWidget(const CartxisApp());
 
     // Allow SplashScreen's delayed navigation to run.
     await tester.pump(const Duration(seconds: 4));

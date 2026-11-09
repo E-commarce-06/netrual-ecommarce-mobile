@@ -1,0 +1,6 @@
+{
+  "APP_NAME": "BNEO",
+  "APP_ENV": "integration",
+  "API_BASE_URL": "https://commarce.arkeonethiopia.com",
+  "API_VERSION": "v1"
+}

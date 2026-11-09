@@ -39,10 +39,7 @@ flutter:
   uses-material-design: true
 
   # Assets
-  assets:
-    - assets/logo.png
-    - assets/transparent_logo.png
-    - assets/transparent_logo_dark.png
+  # Store logos are supplied through the validated mobile settings endpoint.
   # assets:
   #   - assets/images/
   #   - assets/icons/

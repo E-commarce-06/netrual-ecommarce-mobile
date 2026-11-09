@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:cartxis_app/core/config/mobile_app_settings_controller.dart';
 import 'package:cartxis_app/core/constants/app_colors.dart';
 import 'package:cartxis_app/data/services/checkout_service.dart';
 import 'package:cartxis_app/data/services/cart_service.dart';
@@ -166,7 +167,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
       // Step 1: get gateway config for UI branding (name, theme)
       final paymentMethodData = await _checkoutService.setPaymentMethod('razorpay');
       final gatewayConfig = paymentMethodData['gateway_config'] as Map<String, dynamic>?;
-      final businessName = gatewayConfig?['name'] as String? ?? 'Cartxis';
+      final businessName = gatewayConfig?['name'] as String? ??
+          MobileAppSettingsScope.of(context).settings.appName;
       final themeColor = gatewayConfig?['theme_color'] as String? ?? '#3399cc';
 
       // Step 2: place order first — backend creates internal order + Razorpay order
@@ -316,9 +318,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
       final clientSecret = gatewayConfig['client_secret'] as String? ?? 
                           gatewayConfig['payment_intent_client_secret'] as String?;
       
-      final merchantName = gatewayConfig['name'] as String? ?? 
-              gatewayConfig['merchant_name'] as String? ?? 
-              'Cartxis';
+      final merchantName = gatewayConfig['name'] as String? ??
+          gatewayConfig['merchant_name'] as String? ??
+          MobileAppSettingsScope.of(context).settings.appName;
       
       if (publishableKey == null || publishableKey.isEmpty) {
         throw Exception('Stripe publishable key not found in gateway configuration. Available keys: ${gatewayConfig.keys.join(", ")}');

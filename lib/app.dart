@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cartxis_app/core/config/mobile_app_settings_controller.dart';
 import 'package:cartxis_app/core/theme/app_theme.dart';
 import 'package:cartxis_app/core/theme/theme_controller.dart';
 import 'package:cartxis_app/routes/app_router.dart';
@@ -15,18 +18,24 @@ class CartxisApp extends StatefulWidget {
 class _CartxisAppState extends State<CartxisApp> with WidgetsBindingObserver {
   final ApiSyncService _apiSyncService = ApiSyncService();
   final ThemeController _themeController = ThemeController.instance;
+  final MobileAppSettingsController _mobileSettingsController =
+      MobileAppSettingsController();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _themeController.addListener(_onThemeChanged);
+    _mobileSettingsController.addListener(_onAppSettingsChanged);
+    unawaited(_mobileSettingsController.load());
     _sendHeartbeat();
   }
 
   @override
   void dispose() {
     _themeController.removeListener(_onThemeChanged);
+    _mobileSettingsController.removeListener(_onAppSettingsChanged);
+    _mobileSettingsController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -35,10 +44,15 @@ class _CartxisAppState extends State<CartxisApp> with WidgetsBindingObserver {
     if (mounted) setState(() {});
   }
 
+  void _onAppSettingsChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _sendHeartbeat();
+      unawaited(_mobileSettingsController.load());
     }
   }
 
@@ -67,25 +81,28 @@ class _CartxisAppState extends State<CartxisApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Cartxis',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme(),
-      darkTheme: AppTheme.darkTheme(),
-      themeMode: _themeController.themeMode,
-      initialRoute: AppRouter.splash,
-      onGenerateRoute: AppRouter.generateRoute,
-      builder: (context, child) {
-        _applySystemUi(Theme.of(context).brightness);
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(
-              MediaQuery.of(context).textScaleFactor.clamp(0.8, 1.2),
+    return MobileAppSettingsScope(
+      controller: _mobileSettingsController,
+      child: MaterialApp(
+        title: _mobileSettingsController.settings.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme(),
+        darkTheme: AppTheme.darkTheme(),
+        themeMode: _themeController.themeMode,
+        initialRoute: AppRouter.splash,
+        onGenerateRoute: AppRouter.generateRoute,
+        builder: (context, child) {
+          _applySystemUi(Theme.of(context).brightness);
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(
+                MediaQuery.of(context).textScaleFactor.clamp(0.8, 1.2),
+              ),
             ),
-          ),
-          child: child!,
-        );
-      },
+            child: child!,
+          );
+        },
+      ),
     );
   }
 }

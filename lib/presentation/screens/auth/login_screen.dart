@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:cartxis_app/core/config/mobile_app_settings_controller.dart';
 import 'package:cartxis_app/core/constants/app_colors.dart';
 import 'package:cartxis_app/core/constants/app_sizes.dart';
 import 'package:cartxis_app/core/constants/app_strings.dart';
 import 'package:cartxis_app/core/theme/text_styles.dart';
 import 'package:cartxis_app/data/services/auth_service.dart';
-import 'package:cartxis_app/data/services/app_settings_service.dart';
 import 'package:cartxis_app/core/network/api_exception.dart';
 import 'package:cartxis_app/presentation/screens/auth/widgets/auth_logo.dart';
 
@@ -20,26 +20,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
-  final _settingsService = AppSettingsService();
-  String? _logoUrl;
   bool _rememberMe = false;
   bool _obscurePassword = true;
   bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadLogoUrl();
-  }
-
-  Future<void> _loadLogoUrl() async {
-    final url = await _settingsService.getMobileAuthLogo();
-    if (mounted) {
-      setState(() {
-        _logoUrl = url;
-      });
-    }
-  }
 
   @override
   void dispose() {
@@ -204,7 +187,12 @@ class _LoginScreenState extends State<LoginScreen> {
     return Column(
       children: [
         // Logo — remote from /api/v1/app/settings, else light/dark local assets.
-        AuthLogo(networkUrl: _logoUrl, width: 220, height: 88),
+        AuthLogo(
+          networkUrl: MobileAppSettingsScope.of(context).settings.authLogoUrl,
+          fallbackLabel: MobileAppSettingsScope.of(context).settings.appName,
+          width: 220,
+          height: 88,
+        ),
 
         const SizedBox(height: 24),
 

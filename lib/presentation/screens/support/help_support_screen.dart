@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/config/mobile_app_settings_controller.dart';
 import '../../../core/constants/app_colors.dart';
 
 class HelpSupportScreen extends StatelessWidget {
@@ -6,26 +8,25 @@ class HelpSupportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = MobileAppSettingsScope.of(context).settings;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasContact = settings.supportEmail.isNotEmpty ||
+        settings.supportPhone.isNotEmpty ||
+        settings.supportWhatsApp.isNotEmpty;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF101922) : const Color(0xFFF6F7F8),
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF101922).withOpacity(0.95)
-                    : const Color(0xFFF6F7F8).withOpacity(0.95),
+                color: (isDark ? const Color(0xFF101922) : const Color(0xFFF6F7F8))
+                    .withOpacity(0.95),
                 border: Border(
                   bottom: BorderSide(
-                    color: isDark
-                        ? const Color(0xFF1F2937)
-                        : const Color(0xFFE5E7EB),
-                    width: 1,
+                    color: isDark ? const Color(0xFF1F2937) : const Color(0xFFE5E7EB),
                   ),
                 ),
               ),
@@ -46,118 +47,80 @@ class HelpSupportScreen extends StatelessWidget {
                     child: Text(
                       'Help & Support',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ),
                   const SizedBox(width: 50),
                 ],
               ),
             ),
-
-            // Content
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // FAQ Section
-                    _buildSectionTitle('Frequently Asked Questions', isDark),
-                    const SizedBox(height: 16),
-                    
-                    _buildFAQItem(
-                      'How do I track my order?',
-                      'You can track your order by going to Profile > My Orders and selecting the order you want to track. Click on "Track Order" to see the current status and location.',
-                      isDark,
-                    ),
-                    
-                    _buildFAQItem(
-                      'What payment methods do you accept?',
-                      'We accept Credit/Debit Cards (Visa, Mastercard, American Express), PayPal, Apple Pay, Google Pay, and Bank Transfer.',
-                      isDark,
-                    ),
-                    
-                    _buildFAQItem(
-                      'How long does shipping take?',
-                      'Standard shipping takes 3-5 business days, Express shipping takes 1-2 business days, and Same Day delivery is available for select locations.',
-                      isDark,
-                    ),
-                    
-                    _buildFAQItem(
-                      'What is your return policy?',
-                      'We offer a 30-day return policy. Items must be unused and in original packaging. Contact support to initiate a return.',
-                      isDark,
-                    ),
-                    
-                    _buildFAQItem(
-                      'How do I change my password?',
-                      'Go to Profile > Edit Profile, scroll down to the Change Password section, and enter your current and new password.',
-                      isDark,
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Contact Section
-                    _buildSectionTitle('Contact Us', isDark),
-                    const SizedBox(height: 16),
-
-                    _buildContactCard(
-                      icon: Icons.email_outlined,
-                      title: 'Email',
-                      content: 'support@cartxis.com',
-                      isDark: isDark,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    _buildContactCard(
-                      icon: Icons.phone_outlined,
-                      title: 'Phone',
-                      content: '+1 (800) 123-4567',
-                      isDark: isDark,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    _buildContactCard(
-                      icon: Icons.access_time_outlined,
-                      title: 'Business Hours',
-                      content: 'Mon-Fri: 9:00 AM - 6:00 PM EST',
-                      isDark: isDark,
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Live Chat Button
-                    Center(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Live chat coming soon'),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.chat_bubble_outline),
-                        label: const Text('Start Live Chat'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 16,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                    Text(
+                      'Contact ${settings.appName}',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0D141B),
                       ),
                     ),
-
+                    const SizedBox(height: 8),
+                    Text(
+                      hasContact
+                          ? 'Use the contact details below to reach the store support team.'
+                          : 'Store support contact details have not been configured. Please use the store website for assistance.',
+                      style: TextStyle(
+                        fontSize: 15,
+                        height: 1.5,
+                        color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                      ),
+                    ),
                     const SizedBox(height: 24),
+                    if (settings.supportEmail.isNotEmpty)
+                      _buildContactCard(
+                        icon: Icons.email_outlined,
+                        title: 'Email',
+                        content: settings.supportEmail,
+                        isDark: isDark,
+                      ),
+                    if (settings.supportPhone.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _buildContactCard(
+                        icon: Icons.phone_outlined,
+                        title: 'Phone',
+                        content: settings.supportPhone,
+                        isDark: isDark,
+                      ),
+                    ],
+                    if (settings.supportWhatsApp.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _buildContactCard(
+                        icon: Icons.chat_outlined,
+                        title: 'WhatsApp',
+                        content: settings.supportWhatsApp,
+                        isDark: isDark,
+                      ),
+                    ],
+                    if (settings.returnPolicy.isNotEmpty ||
+                        settings.shippingPolicy.isNotEmpty) ...[
+                      const SizedBox(height: 28),
+                      Text(
+                        'Store policies',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF0D141B),
+                        ),
+                      ),
+                      if (settings.returnPolicy.isNotEmpty)
+                        _buildPolicyTile('Returns', settings.returnPolicy, isDark),
+                      if (settings.shippingPolicy.isNotEmpty)
+                        _buildPolicyTile('Shipping', settings.shippingPolicy, isDark),
+                    ],
                   ],
                 ),
               ),
@@ -168,46 +131,19 @@ class HelpSupportScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionTitle(String title, bool isDark) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: isDark ? Colors.white : const Color(0xFF0D141B),
-      ),
-    );
-  }
-
-  Widget _buildFAQItem(String question, String answer, bool isDark) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F2937) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark ? const Color(0xFF374151) : const Color(0xFFE5E7EB),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildPolicyTile(String title, String content, bool isDark) {
+    return Card(
+      color: isDark ? const Color(0xFF1F2937) : Colors.white,
+      margin: const EdgeInsets.only(top: 10),
+      child: ExpansionTile(
+        title: Text(title),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         children: [
-          Text(
-            question,
+          SelectableText(
+            content,
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white : const Color(0xFF0D141B),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            answer,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.5,
-              color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+              height: 1.55,
+              color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
             ),
           ),
         ],
@@ -238,11 +174,7 @@ class HelpSupportScreen extends StatelessWidget {
               color: AppColors.primary.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              color: AppColors.primary,
-              size: 24,
-            ),
+            child: Icon(icon, color: AppColors.primary, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -254,12 +186,11 @@ class HelpSupportScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color:
-                        isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
+                SelectableText(
                   content,
                   style: TextStyle(
                     fontSize: 16,

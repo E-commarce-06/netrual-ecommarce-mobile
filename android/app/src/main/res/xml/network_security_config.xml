@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- User-installed certificates are trusted only by debuggable builds. -->
     <debug-overrides>
-        <!-- Trust all CAs in debug builds (development only) -->
         <trust-anchors>
-            <certificates src="system"/>
-            <certificates src="user"/>
+            <certificates src="system" />
+            <certificates src="user" />
         </trust-anchors>
     </debug-overrides>
-    <base-config cleartextTrafficPermitted="true">
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
-            <certificates src="system"/>
-            <certificates src="user"/>
+            <certificates src="system" />
         </trust-anchors>
     </base-config>
 </network-security-config>

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:cartxis_app/core/config/mobile_app_settings_controller.dart';
 import 'package:cartxis_app/core/constants/app_colors.dart';
 import 'package:cartxis_app/core/constants/app_sizes.dart';
 import 'package:cartxis_app/core/theme/text_styles.dart';
 import 'package:cartxis_app/data/services/auth_service.dart';
 import 'package:cartxis_app/core/network/api_exception.dart';
+import 'package:cartxis_app/routes/app_router.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -184,6 +186,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final appName = MobileAppSettingsScope.of(context).settings.appName;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final iconColor = _textSecondary(isDark);
     final fieldStyle = AppTextStyles.body1.copyWith(color: _textPrimary(isDark));
@@ -252,7 +255,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Fill in your details to start shopping with Cartxis.',
+                        'Fill in your details to start shopping with $appName.',
                         style: AppTextStyles.body1.copyWith(
                           color: _textSecondary(isDark),
                         ),
@@ -304,7 +307,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         style: fieldStyle,
                         decoration: _fieldDecoration(
                           isDark: isDark,
-                          hintText: 'example@cartxis.com',
+                          hintText: 'you@example.com',
                           prefixIcon: Icon(
                             Icons.mail_outline,
                             size: 20,
@@ -469,39 +472,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _acceptTerms = !_acceptTerms;
-                                });
-                              },
-                              child: Text.rich(
-                                TextSpan(
-                                  text: 'I agree to the ',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: _textSecondary(isDark),
-                                  ),
-                                  children: const [
-                                    TextSpan(
-                                      text: 'Terms & Conditions',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                    TextSpan(text: ' and '),
-                                    TextSpan(
-                                      text: 'Privacy Policy',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                    TextSpan(text: '.'),
-                                  ],
+                              onTap: () => setState(
+                                () => _acceptTerms = !_acceptTerms,
+                              ),
+                              child: Text(
+                                'I agree to the store terms and privacy policy.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: _textSecondary(isDark),
                                 ),
                               ),
                             ),
+                          ),
+                        ],
+                      ),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context)
+                                .pushNamed(AppRouter.termsConditions),
+                            child: const Text('Terms & Conditions'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context)
+                                .pushNamed(AppRouter.privacyPolicy),
+                            child: const Text('Privacy Policy'),
                           ),
                         ],
                       ),

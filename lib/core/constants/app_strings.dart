@@ -3,11 +3,11 @@ class AppStrings {
   AppStrings._();
 
   // App Info
-  static const String appName = 'Cartxis';
-  static const String appTagline = 'eCommerce';
-    // Keep in sync with pubspec.yaml / GitHub release (x.y.z, no build number).
-    static const String appVersion = '1.0.4';
-  static const String poweredBy = 'Powered by Cartxis API';
+  static const String appName = 'Storefront';
+  static const String appTagline = 'Online shopping';
+  // Keep in sync with pubspec.yaml / GitHub release (x.y.z, no build number).
+  static const String appVersion = '1.0.4';
+  static const String poweredBy = 'Your online store';
 
   // Splash Screen
   static const String checkingAuth = 'Getting things ready…';
@@ -20,17 +20,17 @@ class AppStrings {
   // Onboarding 1
   static const String onboarding1Title = 'Discover Latest Trends';
   static const String onboarding1Description =
-      'Explore thousands of products from top brands at unbeatable prices, delivered straight to your door.';
+      'Browse the products available from this store and discover items that fit your needs.';
 
   // Onboarding 2
   static const String onboarding2Title = 'Discover What You Love';
   static const String onboarding2Description =
-      'Explore thousands of products tailored to your style. Our smart search makes finding your next favorite item easier than ever.';
+      'Use categories and search to find products in the store catalog.';
 
   // Onboarding 3
   static const String onboarding3Title = 'Ready to Shop?';
   static const String onboarding3Description =
-      'Explore a world of products at unbeatable prices. Sign up now to receive a 20% welcome discount.';
+      'Create an account to manage your profile and orders.';
 
   // Login Screen
   static const String welcomeBack = 'Welcome Back';
