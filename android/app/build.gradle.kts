@@ -1,3 +1,7 @@
+import java.net.URI
+import java.util.Base64
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -53,7 +57,7 @@ val dartDefineValues = providers.gradleProperty("dart-defines").orNull
     .split(',')
     .mapNotNull { encoded ->
         runCatching {
-            String(java.util.Base64.getUrlDecoder().decode(encoded), Charsets.UTF_8)
+            String(Base64.getUrlDecoder().decode(encoded), Charsets.UTF_8)
         }.getOrNull()
     }
 val dartDefineMap = dartDefineValues.mapNotNull { entry ->
@@ -61,7 +65,7 @@ val dartDefineMap = dartDefineValues.mapNotNull { entry ->
     if (separator <= 0) null else entry.substring(0, separator) to entry.substring(separator + 1)
 }.toMap()
 val releaseApiUri = dartDefineMap["API_BASE_URL"]?.let { raw ->
-    runCatching { java.net.URI(raw) }.getOrNull()
+    runCatching { URI(raw) }.getOrNull()
 }
 val hasValidReleaseProfile =
     dartDefineMap["APP_ENV"] == "production" &&
@@ -81,10 +85,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     if (hasReleaseSigning) {
@@ -119,6 +119,12 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
